@@ -44,10 +44,11 @@ class GlassBottomNavBar extends StatelessWidget {
               onTap: () => context.go('/education'),
             ),
             _NavBarItem(
-              icon: Icons.newspaper_rounded,
-              label: 'Notícias',
-              isSelected: GoRouterState.of(context).uri.toString() == '/news',
-              onTap: () => context.go('/news'),
+              icon: Icons.account_balance_wallet_rounded,
+              label: 'Gastos',
+              isSelected:
+                  GoRouterState.of(context).uri.toString() == '/expenses',
+              onTap: () => context.go('/expenses'),
             ),
             _NavBarItem(
               icon: Icons.person_rounded,

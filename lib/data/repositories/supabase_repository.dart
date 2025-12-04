@@ -141,6 +141,92 @@ class SupabaseRepository {
     }
   }
 
+  // Get financial summary filtered by month
+  Future<Map<String, double>> getFinancialSummaryByMonth(
+    int year,
+    int month,
+  ) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null)
+        return {'balance': 0.0, 'income': 0.0, 'expense': 0.0};
+
+      // Calculate date range for the month
+      final startDate = DateTime(year, month, 1);
+      final endDate = DateTime(
+        year,
+        month + 1,
+        0,
+        23,
+        59,
+        59,
+      ); // Last day of month
+
+      final transactions = await _client
+          .from('transactions')
+          .select('amount, type')
+          .eq('user_id', userId)
+          .gte('date', startDate.toIso8601String())
+          .lte('date', endDate.toIso8601String());
+
+      double income = 0.0;
+      double expense = 0.0;
+
+      for (var t in transactions) {
+        final amount = (t['amount'] as num).toDouble();
+        if (t['type'] == 'income') {
+          income += amount;
+        } else {
+          expense += amount;
+        }
+      }
+
+      return {
+        'balance': income - expense,
+        'income': income,
+        'expense': expense,
+      };
+    } catch (e) {
+      debugPrint('Error fetching monthly summary: $e');
+      return {'balance': 0.0, 'income': 0.0, 'expense': 0.0};
+    }
+  }
+
+  // Get transactions filtered by month
+  Future<List<TransactionModel>> getTransactionsByMonth(
+    int year,
+    int month,
+  ) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return [];
+
+      // Calculate date range for the month
+      final startDate = DateTime(year, month, 1);
+      final endDate = DateTime(
+        year,
+        month + 1,
+        0,
+        23,
+        59,
+        59,
+      ); // Last day of month
+
+      final data = await _client
+          .from('transactions')
+          .select()
+          .eq('user_id', userId)
+          .gte('date', startDate.toIso8601String())
+          .lte('date', endDate.toIso8601String())
+          .order('date', ascending: false);
+
+      return (data as List).map((e) => TransactionModel.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('Error fetching monthly transactions: $e');
+      return [];
+    }
+  }
+
   // --- Savings & Education ---
 
   Future<List<SavingsGoal>> getSavingsGoals() async {

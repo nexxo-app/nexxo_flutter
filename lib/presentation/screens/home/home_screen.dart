@@ -26,15 +26,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<Map<String, dynamic>> _fetchDashboardData() async {
+    final now = DateTime.now();
     final profile = await _repository.getProfile();
     final streak = await _repository.getUserStreak();
-    final summary = await _repository.getFinancialSummary();
+    final summaryTotal = await _repository.getFinancialSummary();
+    final summaryMonth = await _repository.getFinancialSummaryByMonth(
+      now.year,
+      now.month,
+    );
     final transactions = await _repository.getRecentTransactions();
 
     return {
       'profile': profile,
       'streak': streak,
-      'summary': summary,
+      'summaryTotal': summaryTotal,
+      'summaryMonth': summaryMonth,
       'transactions': transactions,
     };
   }
@@ -67,7 +73,8 @@ class _HomeScreenState extends State<HomeScreen> {
           final data = snapshot.data ?? {};
           final profile = data['profile'] as Profile?;
           final streak = data['streak'] as UserStreak?;
-          final summary = data['summary'] as Map<String, double>?;
+          final summaryTotal = data['summaryTotal'] as Map<String, double>?;
+          final summaryMonth = data['summaryMonth'] as Map<String, double>?;
           final transactions = data['transactions'] as List<TransactionModel>?;
 
           return SafeArea(
@@ -80,11 +87,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 20),
                   SummaryCard(
-                    balance: summary?['balance'] ?? 0.0,
-                    income: summary?['income'] ?? 0.0,
-                    expense: summary?['expense'] ?? 0.0,
+                    balanceTotal: summaryTotal?['balance'] ?? 0.0,
+                    incomeTotal: summaryTotal?['income'] ?? 0.0,
+                    expenseTotal: summaryTotal?['expense'] ?? 0.0,
+                    balanceMonth: summaryMonth?['balance'] ?? 0.0,
+                    incomeMonth: summaryMonth?['income'] ?? 0.0,
+                    expenseMonth: summaryMonth?['expense'] ?? 0.0,
                   ),
-                  const SizedBox(height: 20),
                   const SizedBox(height: 20),
                   QuickActions(
                     onRefresh: () {

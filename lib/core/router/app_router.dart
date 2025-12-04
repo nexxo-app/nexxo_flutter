@@ -6,7 +6,7 @@ import '../../presentation/widgets/bottom_nav_bar.dart';
 import '../../presentation/screens/home/home_screen.dart';
 import '../../presentation/screens/education/education_screen.dart';
 import '../../presentation/screens/education/admin/admin_panel_screen.dart';
-import '../../presentation/screens/news/news_screen.dart';
+import '../../presentation/screens/expenses/expenses_screen.dart';
 import '../../presentation/screens/auth/login_screen.dart';
 import '../../presentation/screens/auth/register_screen.dart';
 import '../../presentation/screens/auth/forgot_password_screen.dart';
@@ -69,7 +69,10 @@ final appRouter = GoRouter(
             ),
           ],
         ),
-        GoRoute(path: '/news', builder: (context, state) => const NewsScreen()),
+        GoRoute(
+          path: '/expenses',
+          builder: (context, state) => const ExpensesScreen(),
+        ),
         GoRoute(
           path: '/profile',
           builder: (context, state) => const ProfileScreen(),

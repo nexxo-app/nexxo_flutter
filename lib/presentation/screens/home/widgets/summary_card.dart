@@ -2,15 +2,23 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class SummaryCard extends StatefulWidget {
-  final double balance;
-  final double income;
-  final double expense;
+  // Total (all time)
+  final double balanceTotal;
+  final double incomeTotal;
+  final double expenseTotal;
+  // Month
+  final double balanceMonth;
+  final double incomeMonth;
+  final double expenseMonth;
 
   const SummaryCard({
     super.key,
-    this.balance = 0.0,
-    this.income = 0.0,
-    this.expense = 0.0,
+    this.balanceTotal = 0.0,
+    this.incomeTotal = 0.0,
+    this.expenseTotal = 0.0,
+    this.balanceMonth = 0.0,
+    this.incomeMonth = 0.0,
+    this.expenseMonth = 0.0,
   });
 
   @override
@@ -19,6 +27,25 @@ class SummaryCard extends StatefulWidget {
 
 class _SummaryCardState extends State<SummaryCard> {
   bool _isBalanceVisible = true;
+  bool _showMonthly = true; // Toggle between monthly and total view
+
+  String _getMonthName(int month) {
+    const months = [
+      'Janeiro',
+      'Fevereiro',
+      'Março',
+      'Abril',
+      'Maio',
+      'Junho',
+      'Julho',
+      'Agosto',
+      'Setembro',
+      'Outubro',
+      'Novembro',
+      'Dezembro',
+    ];
+    return months[month - 1];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,10 +55,14 @@ class _SummaryCardState extends State<SummaryCard> {
       return 'R\$ ${value.toStringAsFixed(2).replaceAll('.', ',')}';
     }
 
+    // Get current values based on toggle
+    final balance = _showMonthly ? widget.balanceMonth : widget.balanceTotal;
+    final income = _showMonthly ? widget.incomeMonth : widget.incomeTotal;
+    final expense = _showMonthly ? widget.expenseMonth : widget.expenseTotal;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        height: 200,
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(30),
@@ -84,15 +115,57 @@ class _SummaryCardState extends State<SummaryCard> {
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // Header with toggle
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Saldo Total',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(color: Colors.white.withOpacity(0.9)),
+                        // Toggle button for Monthly/Total
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _showMonthly = !_showMonthly;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _showMonthly
+                                      ? Icons.calendar_month_rounded
+                                      : Icons.account_balance_wallet_rounded,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _showMonthly
+                                      ? _getMonthName(DateTime.now().month)
+                                      : 'Total Geral',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.swap_horiz_rounded,
+                                  color: Colors.white.withOpacity(0.7),
+                                  size: 16,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                         IconButton(
                           icon: Icon(
@@ -109,18 +182,30 @@ class _SummaryCardState extends State<SummaryCard> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    // Balance label
                     Text(
-                      formatCurrency(widget.balance),
+                      _showMonthly ? 'Saldo do Mês' : 'Saldo Total',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // Balance value
+                    Text(
+                      formatCurrency(balance),
                       style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const SizedBox(height: 20),
+                    // Income/Expense row
                     Row(
                       children: [
                         _SummaryItem(
                           label: 'Receitas',
-                          value: formatCurrency(widget.income),
+                          value: formatCurrency(income),
                           color: Colors.white,
                           icon: Icons.arrow_upward_rounded,
                           iconBgColor: Colors.white.withOpacity(0.2),
@@ -128,7 +213,7 @@ class _SummaryCardState extends State<SummaryCard> {
                         const SizedBox(width: 24),
                         _SummaryItem(
                           label: 'Despesas',
-                          value: formatCurrency(widget.expense),
+                          value: formatCurrency(expense),
                           color: Colors.white,
                           icon: Icons.arrow_downward_rounded,
                           iconBgColor: Colors.white.withOpacity(0.2),
