@@ -15,11 +15,16 @@ class ExpensesScreen extends StatefulWidget {
 
 class _ExpensesScreenState extends State<ExpensesScreen> {
   final SupabaseRepository _repository = SupabaseRepository();
-  late Future<Map<String, dynamic>> _expensesData;
 
   // Current selected month/year
   late int _selectedYear;
   late int _selectedMonth;
+
+  // Data state (not using FutureBuilder to avoid full refresh)
+  bool _isInitialLoading = true;
+  Map<String, double> _summary = {};
+  List<TransactionModel> _transactions = [];
+  Map<String, double> _expensesByCategory = {};
 
   @override
   void initState() {
@@ -30,14 +35,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     _loadExpensesData();
   }
 
-  void _loadExpensesData() {
-    setState(() {
-      _expensesData = _fetchExpensesData();
-    });
-  }
-
-  Future<Map<String, dynamic>> _fetchExpensesData() async {
-    // Use the new month-filtered methods
+  Future<void> _loadExpensesData() async {
     final summary = await _repository.getFinancialSummaryByMonth(
       _selectedYear,
       _selectedMonth,
@@ -47,9 +45,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       _selectedMonth,
     );
 
-    // Separate expenses and incomes
+    // Separate expenses for category grouping
     final expenses = transactions.where((t) => t.type == 'expense').toList();
-    final incomes = transactions.where((t) => t.type == 'income').toList();
 
     // Group expenses by category
     final Map<String, double> expensesByCategory = {};
@@ -58,12 +55,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           (expensesByCategory[expense.category] ?? 0) + expense.amount;
     }
 
-    return {
-      'summary': summary,
-      'expenses': expenses,
-      'incomes': incomes,
-      'expensesByCategory': expensesByCategory,
-    };
+    if (mounted) {
+      setState(() {
+        _summary = summary;
+        _transactions = transactions;
+        _expensesByCategory = expensesByCategory;
+        _isInitialLoading = false;
+      });
+    }
   }
 
   String _getMonthName(int month) {
@@ -98,7 +97,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   void _nextMonth() {
     final now = DateTime.now();
-    // Don't allow selecting future months
     if (_selectedYear == now.year && _selectedMonth >= now.month) return;
 
     setState(() {
@@ -121,251 +119,228 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final totalExpense = _summary['expense'] ?? 0.0;
+    final totalIncome = _summary['income'] ?? 0.0;
+    final balance = _summary['balance'] ?? 0.0;
+
+    if (_isInitialLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       body: SafeArea(
-        child: FutureBuilder<Map<String, dynamic>>(
-          future: _expensesData,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return Center(child: Text('Erro: ${snapshot.error}'));
-            }
-
-            final data = snapshot.data ?? {};
-            final summary = data['summary'] as Map<String, double>? ?? {};
-            final expenses = data['expenses'] as List<TransactionModel>? ?? [];
-            final incomes = data['incomes'] as List<TransactionModel>? ?? [];
-            final expensesByCategory =
-                data['expensesByCategory'] as Map<String, double>? ?? {};
-
-            final totalExpense = summary['expense'] ?? 0.0;
-            final totalIncome = summary['income'] ?? 0.0;
-            final balance = summary['balance'] ?? 0.0;
-
-            return RefreshIndicator(
-              onRefresh: () async => _loadExpensesData(),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header - Same style as HomeHeader
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 10,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Controle de',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  color: theme.colorScheme.onSurface
-                                      .withOpacity(0.6),
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Gastos',
-                                style: theme.textTheme.displaySmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: theme.colorScheme.onSurface,
-                                  letterSpacing: -0.5,
-                                  fontSize: 32,
-                                ),
-                              ),
-                            ],
-                          ),
-                          // Month Selector
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: AppTheme.primaryColor.withOpacity(0.3),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.chevron_left_rounded),
-                                  color: AppTheme.primaryColor,
-                                  iconSize: 22,
-                                  padding: const EdgeInsets.all(6),
-                                  constraints: const BoxConstraints(),
-                                  onPressed: _previousMonth,
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                  ),
-                                  child: Text(
-                                    '${_getMonthName(_selectedMonth).substring(0, 3)}/${_selectedYear.toString().substring(2)}',
-                                    style: theme.textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.primaryColor,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.chevron_right_rounded,
-                                    color: _canGoNext
-                                        ? AppTheme.primaryColor
-                                        : AppTheme.primaryColor.withOpacity(
-                                            0.3,
-                                          ),
-                                  ),
-                                  iconSize: 22,
-                                  padding: const EdgeInsets.all(6),
-                                  constraints: const BoxConstraints(),
-                                  onPressed: _canGoNext ? _nextMonth : null,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Balance Card - Same style as SummaryCard
-                    _BalanceSummaryCard(
-                      balance: balance,
-                      income: totalIncome,
-                      expense: totalExpense,
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // Expenses by Category Section
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Text(
-                        'Gastos por Categoria',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    if (expensesByCategory.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: GlassContainer(
-                          padding: const EdgeInsets.all(24),
-                          child: Center(
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.pie_chart_outline_rounded,
-                                  size: 48,
-                                  color: Colors.grey[400],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Nenhuma despesa em ${_getMonthName(_selectedMonth)}',
-                                  style: TextStyle(color: Colors.grey[500]),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          children: expensesByCategory.entries.map((entry) {
-                            final percentage = totalExpense > 0
-                                ? (entry.value / totalExpense * 100)
-                                : 0.0;
-                            return _CategoryExpenseCard(
-                              category: entry.key,
-                              amount: entry.value,
-                              percentage: percentage,
-                            );
-                          }).toList(),
-                        ),
-                      ),
-
-                    const SizedBox(height: 28),
-
-                    // Recent Transactions Section
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: RefreshIndicator(
+          onRefresh: _loadExpensesData,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Transações de ${_getMonthName(_selectedMonth)}',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
+                            'Controle de',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.onSurface.withOpacity(
+                                0.6,
+                              ),
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Gastos',
+                            style: theme.textTheme.displaySmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: theme.colorScheme.onSurface,
+                              letterSpacing: -0.5,
+                              fontSize: 32,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    if (expenses.isEmpty && incomes.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: GlassContainer(
-                          padding: const EdgeInsets.all(24),
-                          child: Center(
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.receipt_long_outlined,
-                                  size: 48,
-                                  color: Colors.grey[400],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'Nenhuma transação em ${_getMonthName(_selectedMonth)}',
-                                  style: TextStyle(color: Colors.grey[500]),
-                                ),
-                              ],
-                            ),
+                      // Month Selector
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppTheme.primaryColor.withOpacity(0.3),
                           ),
                         ),
-                      )
-                    else
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: GlassContainer(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Column(
-                            children: [...expenses, ...incomes]
-                                .map(
-                                  (transaction) => _TransactionListItem(
-                                    transaction: transaction,
-                                  ),
-                                )
-                                .toList(),
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.chevron_left_rounded),
+                              color: AppTheme.primaryColor,
+                              iconSize: 22,
+                              padding: const EdgeInsets.all(6),
+                              constraints: const BoxConstraints(),
+                              onPressed: _previousMonth,
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              child: Text(
+                                '${_getMonthName(_selectedMonth).substring(0, 3)}/${_selectedYear.toString().substring(2)}',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.chevron_right_rounded,
+                                color: _canGoNext
+                                    ? AppTheme.primaryColor
+                                    : AppTheme.primaryColor.withOpacity(0.3),
+                              ),
+                              iconSize: 22,
+                              padding: const EdgeInsets.all(6),
+                              constraints: const BoxConstraints(),
+                              onPressed: _canGoNext ? _nextMonth : null,
+                            ),
+                          ],
                         ),
                       ),
-
-                    // Bottom padding for FAB
-                    const SizedBox(height: 120),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+
+                const SizedBox(height: 20),
+
+                // Balance Card
+                _BalanceSummaryCard(
+                  balance: balance,
+                  income: totalIncome,
+                  expense: totalExpense,
+                ),
+
+                const SizedBox(height: 28),
+
+                // Expenses by Category Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'Gastos por Categoria',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                if (_expensesByCategory.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: GlassContainer(
+                      padding: const EdgeInsets.all(24),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.pie_chart_outline_rounded,
+                              size: 48,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Nenhuma despesa em ${_getMonthName(_selectedMonth)}',
+                              style: TextStyle(color: Colors.grey[500]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: _expensesByCategory.entries.map((entry) {
+                        final percentage = totalExpense > 0
+                            ? (entry.value / totalExpense * 100)
+                            : 0.0;
+                        return _CategoryExpenseCard(
+                          category: entry.key,
+                          amount: entry.value,
+                          percentage: percentage,
+                        );
+                      }).toList(),
+                    ),
+                  ),
+
+                const SizedBox(height: 28),
+
+                // Transactions Section
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'Transações de ${_getMonthName(_selectedMonth)}',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                if (_transactions.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: GlassContainer(
+                      padding: const EdgeInsets.all(24),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.receipt_long_outlined,
+                              size: 48,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Nenhuma transação em ${_getMonthName(_selectedMonth)}',
+                              style: TextStyle(color: Colors.grey[500]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: GlassContainer(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(
+                        children: _transactions
+                            .map(
+                              (transaction) => _TransactionListItem(
+                                transaction: transaction,
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 120),
+              ],
+            ),
+          ),
         ),
       ),
       floatingActionButton: Padding(
@@ -385,7 +360,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 }
 
-// Balance Summary Card - Matching SummaryCard style from home
 class _BalanceSummaryCard extends StatefulWidget {
   final double balance;
   final double income;
@@ -438,7 +412,6 @@ class _BalanceSummaryCardState extends State<_BalanceSummaryCard> {
           borderRadius: BorderRadius.circular(30),
           child: Stack(
             children: [
-              // Decorative circles
               Positioned(
                 top: -20,
                 right: -20,
@@ -484,11 +457,9 @@ class _BalanceSummaryCardState extends State<_BalanceSummaryCard> {
                                 : Icons.visibility_off_outlined,
                             color: Colors.white70,
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _isBalanceVisible = !_isBalanceVisible;
-                            });
-                          },
+                          onPressed: () => setState(
+                            () => _isBalanceVisible = !_isBalanceVisible,
+                          ),
                         ),
                       ],
                     ),
@@ -633,7 +604,6 @@ class _CategoryExpenseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _getCategoryColor(category);
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GlassContainer(

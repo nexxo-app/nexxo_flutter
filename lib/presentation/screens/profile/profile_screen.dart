@@ -48,6 +48,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _navigateToEditProfile() async {
+    final result = await context.push('/edit-profile', extra: _profile);
+    if (result == true) {
+      // Reload profile after editing
+      setState(() => _isLoading = true);
+      await _loadProfile();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeNotifier = Provider.of<ThemeNotifier>(context);
@@ -65,23 +74,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               const SizedBox(height: 20),
               // Avatar
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
-                backgroundImage: _profile?.avatarUrl != null
-                    ? NetworkImage(_profile!.avatarUrl!)
-                    : null,
-                child: _profile?.avatarUrl == null
-                    ? Text(
-                        _profile?.fullName?.substring(0, 1).toUpperCase() ??
-                            'U',
-                        style: const TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
+              GestureDetector(
+                onTap: _navigateToEditProfile,
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+                      backgroundImage: _profile?.avatarUrl != null
+                          ? NetworkImage(_profile!.avatarUrl!)
+                          : null,
+                      child: _profile?.avatarUrl == null
+                          ? Text(
+                              _profile?.fullName
+                                      ?.substring(0, 1)
+                                      .toUpperCase() ??
+                                  'U',
+                              style: const TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
+                            )
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
                           color: AppTheme.primaryColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            width: 2,
+                          ),
                         ),
-                      )
-                    : null,
+                        child: const Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
               // Name
@@ -107,38 +145,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       leading: const Icon(Icons.person_outline),
                       title: const Text('Editar Perfil'),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        // TODO: Implement edit profile
-                      },
+                      onTap: _navigateToEditProfile,
                     ),
-                    const Divider(),
+                    const Divider(height: 1),
                     ListTile(
                       leading: Icon(
                         isDark
-                            ? Icons.dark_mode_outlined
-                            : Icons.light_mode_outlined,
+                            ? Icons.dark_mode_rounded
+                            : Icons.light_mode_rounded,
                       ),
                       title: const Text('Tema Escuro'),
-                      trailing: Switch(
+                      trailing: Switch.adaptive(
                         value: isDark,
+                        activeColor: AppTheme.primaryColor,
                         onChanged: (value) {
                           themeNotifier.toggleTheme(value);
                         },
                       ),
-                    ),
-                    const Divider(),
-                    ListTile(
-                      leading: const Icon(Icons.notifications_outlined),
-                      title: const Text('Notificações'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {},
-                    ),
-                    const Divider(),
-                    ListTile(
-                      leading: const Icon(Icons.security_outlined),
-                      title: const Text('Segurança'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {},
                     ),
                   ],
                 ),

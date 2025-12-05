@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../presentation/screens/profile/profile_screen.dart';
+import '../../presentation/screens/profile/edit_profile_screen.dart';
 import '../../presentation/widgets/bottom_nav_bar.dart';
 import '../../presentation/screens/home/home_screen.dart';
 import '../../presentation/screens/education/education_screen.dart';
@@ -48,6 +49,13 @@ final appRouter = GoRouter(
       builder: (context, state) {
         final goal = state.extra as SavingsGoal?;
         return AddSavingsGoalScreen(goal: goal);
+      },
+    ),
+    GoRoute(
+      path: '/edit-profile',
+      builder: (context, state) {
+        final profile = state.extra as Profile?;
+        return EditProfileScreen(profile: profile);
       },
     ),
     ShellRoute(

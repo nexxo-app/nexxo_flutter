@@ -344,4 +344,18 @@ class SupabaseRepository {
       throw Exception('Erro ao salvar transação: $e');
     }
   }
+
+  Future<void> updateProfile({required String fullName}) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) throw Exception('Usuário não autenticado');
+
+      await _client
+          .from('profiles')
+          .update({'full_name': fullName})
+          .eq('id', userId);
+    } catch (e) {
+      throw Exception('Erro ao atualizar perfil: $e');
+    }
+  }
 }

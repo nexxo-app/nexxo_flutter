@@ -7,6 +7,17 @@ class HomeHeader extends StatelessWidget {
 
   const HomeHeader({super.key, this.userName = 'Vinicius', this.streak = 0});
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) {
+      return 'Bom dia,';
+    } else if (hour >= 12 && hour < 18) {
+      return 'Boa tarde,';
+    } else {
+      return 'Boa noite,';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -18,7 +29,7 @@ class HomeHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Bom dia,',
+                _getGreeting(),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Theme.of(
                     context,
