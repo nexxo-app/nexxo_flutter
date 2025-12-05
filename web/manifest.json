@@ -6,10 +6,14 @@
     "background_color": "#121212",
     "theme_color": "#1E88E5",
     "description": "Seu assistente financeiro pessoal. Controle gastos, acompanhe receitas e despesas, defina metas de economia e aprenda sobre finanças.",
-    "orientation": "portrait-primary",
+    "orientation": "any",
     "prefer_related_applications": false,
     "lang": "pt-BR",
-    "categories": ["finance", "productivity", "education"],
+    "categories": [
+        "finance",
+        "productivity",
+        "education"
+    ],
     "icons": [
         {
             "src": "icons/Icon-192.png",
