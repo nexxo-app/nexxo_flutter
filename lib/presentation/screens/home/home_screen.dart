@@ -7,6 +7,7 @@ import 'widgets/home_header.dart';
 import 'widgets/summary_card.dart';
 import 'widgets/quick_actions.dart';
 import 'widgets/transaction_list.dart';
+import 'widgets/goals_pie_chart.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
       now.month,
     );
     final transactions = await _repository.getRecentTransactions();
+    final savingsGoals = await _repository.getSavingsGoals();
 
     return {
       'profile': profile,
@@ -42,7 +44,14 @@ class _HomeScreenState extends State<HomeScreen> {
       'summaryTotal': summaryTotal,
       'summaryMonth': summaryMonth,
       'transactions': transactions,
+      'savingsGoals': savingsGoals,
     };
+  }
+
+  void _refreshData() {
+    setState(() {
+      _dashboardData = _fetchDashboardData();
+    });
   }
 
   @override
@@ -54,9 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onPressed: () async {
             final result = await context.push('/add-transaction');
             if (result == true) {
-              setState(() {
-                _dashboardData = _fetchDashboardData(); // Refresh data
-              });
+              _refreshData();
             }
           },
           backgroundColor: AppTheme.primaryColor,
@@ -76,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final summaryTotal = data['summaryTotal'] as Map<String, double>?;
           final summaryMonth = data['summaryMonth'] as Map<String, double>?;
           final transactions = data['transactions'] as List<TransactionModel>?;
+          final savingsGoals = data['savingsGoals'] as List<SavingsGoal>?;
 
           return SafeArea(
             child: SingleChildScrollView(
@@ -95,15 +103,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     expenseMonth: summaryMonth?['expense'] ?? 0.0,
                   ),
                   const SizedBox(height: 20),
-                  QuickActions(
-                    onRefresh: () {
-                      setState(() {
-                        _dashboardData = _fetchDashboardData();
-                      });
-                    },
+                  GoalsPieChart(
+                    goals: savingsGoals ?? [],
+                    onRefresh: _refreshData,
                   ),
                   const SizedBox(height: 20),
+                  QuickActions(onRefresh: _refreshData),
+                  const SizedBox(height: 20),
                   TransactionList(transactions: transactions ?? []),
+                  const SizedBox(height: 100), // Bottom padding for nav bar
                 ],
               ),
             ),

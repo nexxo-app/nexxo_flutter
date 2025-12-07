@@ -345,6 +345,30 @@ class SupabaseRepository {
     }
   }
 
+  Future<void> updateTransaction({
+    required String id,
+    required String title,
+    required double amount,
+    required String type,
+    required String category,
+    required DateTime date,
+  }) async {
+    try {
+      await _client
+          .from('transactions')
+          .update({
+            'title': title,
+            'amount': amount,
+            'type': type,
+            'category': category,
+            'date': date.toIso8601String(),
+          })
+          .eq('id', id);
+    } catch (e) {
+      throw Exception('Erro ao atualizar transação: $e');
+    }
+  }
+
   Future<void> updateProfile({required String fullName}) async {
     try {
       final userId = _client.auth.currentUser?.id;

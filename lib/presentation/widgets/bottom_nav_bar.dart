@@ -11,7 +11,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: child,
-      extendBody: true, // Important for glass effect
+      extendBody: true,
       bottomNavigationBar: const GlassBottomNavBar(),
     );
   }
@@ -82,7 +82,7 @@ class _NavBarItem extends StatelessWidget {
     final theme = Theme.of(context);
     final color = isSelected
         ? theme.colorScheme.primary
-        : theme.colorScheme.onSurface.withOpacity(0.6);
+        : theme.colorScheme.onSurface.withAlpha(153);
 
     return InkWell(
       onTap: onTap,

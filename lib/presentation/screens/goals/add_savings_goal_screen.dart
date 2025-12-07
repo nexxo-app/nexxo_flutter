@@ -149,12 +149,38 @@ class _AddSavingsGoalScreenState extends State<AddSavingsGoalScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text(widget.goal != null ? 'Editar Meta' : 'Nova Meta'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
         ),
+        // Save button in AppBar - consistent with AddTransactionScreen
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: _isLoading
+                ? const Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : TextButton(
+                    onPressed: _saveGoal,
+                    child: Text(
+                      'Salvar',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(int.parse(_selectedColor)),
+                      ),
+                    ),
+                  ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -244,7 +270,7 @@ class _AddSavingsGoalScreenState extends State<AddSavingsGoalScreen> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? AppTheme.primaryColor
-                              : Colors.grey.withOpacity(0.1),
+                              : Colors.grey.withAlpha(26),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -289,7 +315,7 @@ class _AddSavingsGoalScreenState extends State<AddSavingsGoalScreen> {
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                    color: color.withOpacity(0.5),
+                                    color: color.withAlpha(128),
                                     blurRadius: 10,
                                     spreadRadius: 2,
                                   ),
@@ -305,31 +331,7 @@ class _AddSavingsGoalScreenState extends State<AddSavingsGoalScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _saveGoal,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'Salvar Meta',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 40), // Bottom padding
+            const SizedBox(height: 100), // Bottom padding for scrollability
           ],
         ),
       ),

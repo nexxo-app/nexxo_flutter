@@ -35,9 +35,16 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/add-transaction',
+      parentNavigatorKey:
+          _rootNavigatorKey, // Use root navigator to cover the nav bar
       builder: (context, state) {
-        final initialType = state.extra as String?;
-        return AddTransactionScreen(initialType: initialType);
+        final extra = state.extra;
+        // Check if extra is a TransactionModel (editing) or String (initial type)
+        if (extra is TransactionModel) {
+          return AddTransactionScreen(transaction: extra);
+        } else {
+          return AddTransactionScreen(initialType: extra as String?);
+        }
       },
     ),
     GoRoute(

@@ -151,9 +151,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           Text(
                             'Controle de',
                             style: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(
-                                0.6,
-                              ),
+                              color: theme.colorScheme.onSurface.withAlpha(
+                                153,
+                              ), // 0.6 * 255 ~= 153
                               fontWeight: FontWeight.w400,
                             ),
                           ),
@@ -172,10 +172,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       // Month Selector
                       Container(
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.1),
+                          color: AppTheme.primaryColor.withAlpha(
+                            26,
+                          ), // 0.1 * 255 ~= 26
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: AppTheme.primaryColor.withOpacity(0.3),
+                            color: AppTheme.primaryColor.withAlpha(
+                              77,
+                            ), // 0.3 * 255 ~= 77
                           ),
                         ),
                         child: Row(
@@ -206,7 +210,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                 Icons.chevron_right_rounded,
                                 color: _canGoNext
                                     ? AppTheme.primaryColor
-                                    : AppTheme.primaryColor.withOpacity(0.3),
+                                    : AppTheme.primaryColor.withAlpha(
+                                        77,
+                                      ), // 0.3
                               ),
                               iconSize: 22,
                               padding: const EdgeInsets.all(6),
@@ -330,6 +336,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             .map(
                               (transaction) => _TransactionListItem(
                                 transaction: transaction,
+                                onEdit: () async {
+                                  final result = await context.push(
+                                    '/add-transaction',
+                                    extra: transaction,
+                                  );
+                                  if (result == true) {
+                                    _loadExpensesData();
+                                  }
+                                },
                               ),
                             )
                             .toList(),
@@ -397,12 +412,12 @@ class _BalanceSummaryCardState extends State<_BalanceSummaryCard> {
             end: Alignment.bottomRight,
             colors: [
               AppTheme.primaryColor,
-              AppTheme.primaryColor.withOpacity(0.8),
+              AppTheme.primaryColor.withAlpha(204), // 0.8
             ],
           ),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryColor.withOpacity(0.3),
+              color: AppTheme.primaryColor.withAlpha(77), // 0.3
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -419,7 +434,7 @@ class _BalanceSummaryCardState extends State<_BalanceSummaryCard> {
                   width: 150,
                   height: 150,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withAlpha(26), // 0.1
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -431,7 +446,7 @@ class _BalanceSummaryCardState extends State<_BalanceSummaryCard> {
                   width: 120,
                   height: 120,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withAlpha(26), // 0.1
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -448,7 +463,9 @@ class _BalanceSummaryCardState extends State<_BalanceSummaryCard> {
                         Text(
                           'Saldo do Mês',
                           style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(color: Colors.white.withOpacity(0.9)),
+                              ?.copyWith(
+                                color: Colors.white.withAlpha(230),
+                              ), // 0.9
                         ),
                         IconButton(
                           icon: Icon(
@@ -514,7 +531,7 @@ class _BalanceItem extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withAlpha(51), // 0.2
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: Colors.white, size: 16),
@@ -526,7 +543,7 @@ class _BalanceItem extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withAlpha(204), // 0.8
                 fontSize: 12,
               ),
             ),
@@ -613,7 +630,7 @@ class _CategoryExpenseCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withAlpha(38), // 0.15
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(_getCategoryIcon(category), color: color, size: 24),
@@ -635,7 +652,7 @@ class _CategoryExpenseCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: percentage / 100,
-                      backgroundColor: color.withOpacity(0.15),
+                      backgroundColor: color.withAlpha(38), // 0.15
                       color: color,
                       minHeight: 6,
                     ),
@@ -671,8 +688,9 @@ class _CategoryExpenseCard extends StatelessWidget {
 
 class _TransactionListItem extends StatelessWidget {
   final TransactionModel transaction;
+  final VoidCallback? onEdit;
 
-  const _TransactionListItem({required this.transaction});
+  const _TransactionListItem({required this.transaction, this.onEdit});
 
   IconData _getCategoryIcon(String category) {
     switch (category.toLowerCase()) {
@@ -702,53 +720,62 @@ class _TransactionListItem extends StatelessWidget {
     final isExpense = transaction.type == 'expense';
     final color = isExpense ? Colors.red : Colors.green;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+    return InkWell(
+      onTap: onEdit,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withAlpha(26), // 0.1
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                _getCategoryIcon(transaction.category),
+                color: color,
+                size: 22,
+              ),
             ),
-            child: Icon(
-              _getCategoryIcon(transaction.category),
-              color: color,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  transaction.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    transaction.title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  DateFormat('dd/MM').format(transaction.date),
-                  style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    DateFormat('dd/MM').format(transaction.date),
+                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Text(
-            '${isExpense ? '-' : '+'} R\$ ${transaction.amount.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 15,
-              color: color,
+            Text(
+              '${isExpense ? '-' : '+'} R\$ ${transaction.amount.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+                color: color,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.grey[400],
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }

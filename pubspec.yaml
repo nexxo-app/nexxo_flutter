@@ -17,6 +17,7 @@ dependencies:
   supabase_flutter: ^2.3.0
   glassmorphism: ^3.0.0
   shared_preferences: ^2.2.2
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
