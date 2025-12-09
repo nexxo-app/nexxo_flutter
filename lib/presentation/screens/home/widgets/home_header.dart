@@ -3,9 +3,8 @@ import '../../../../core/theme/app_theme.dart';
 
 class HomeHeader extends StatelessWidget {
   final String userName;
-  final int streak;
 
-  const HomeHeader({super.key, this.userName = 'Vinicius', this.streak = 0});
+  const HomeHeader({super.key, this.userName = 'Vinicius'});
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -50,28 +49,15 @@ class HomeHeader extends StatelessWidget {
             ],
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: AppTheme.primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+              shape: BoxShape.circle,
             ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.local_fire_department_rounded,
-                  color: Colors.orange,
-                  size: 20,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '$streak',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                  ),
-                ),
-              ],
+            child: const Icon(
+              Icons.notifications_outlined,
+              color: AppTheme.primaryColor,
+              size: 24,
             ),
           ),
         ],

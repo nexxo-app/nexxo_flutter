@@ -29,7 +29,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<Map<String, dynamic>> _fetchDashboardData() async {
     final now = DateTime.now();
     final profile = await _repository.getProfile();
-    final streak = await _repository.getUserStreak();
     final summaryTotal = await _repository.getFinancialSummary();
     final summaryMonth = await _repository.getFinancialSummaryByMonth(
       now.year,
@@ -40,7 +39,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return {
       'profile': profile,
-      'streak': streak,
       'summaryTotal': summaryTotal,
       'summaryMonth': summaryMonth,
       'transactions': transactions,
@@ -79,7 +77,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
           final data = snapshot.data ?? {};
           final profile = data['profile'] as Profile?;
-          final streak = data['streak'] as UserStreak?;
           final summaryTotal = data['summaryTotal'] as Map<String, double>?;
           final summaryMonth = data['summaryMonth'] as Map<String, double>?;
           final transactions = data['transactions'] as List<TransactionModel>?;
@@ -91,7 +88,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   HomeHeader(
                     userName: profile?.fullName?.split(' ').first ?? 'Usuário',
-                    streak: streak?.currentStreak ?? 0,
                   ),
                   const SizedBox(height: 20),
                   SummaryCard(
