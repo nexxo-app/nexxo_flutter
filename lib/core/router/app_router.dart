@@ -5,8 +5,7 @@ import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/profile/edit_profile_screen.dart';
 import '../../presentation/widgets/bottom_nav_bar.dart';
 import '../../presentation/screens/home/home_screen.dart';
-import '../../presentation/screens/education/education_screen.dart';
-import '../../presentation/screens/education/admin/admin_panel_screen.dart';
+
 import '../../presentation/screens/expenses/expenses_screen.dart';
 import '../../presentation/screens/auth/login_screen.dart';
 import '../../presentation/screens/auth/register_screen.dart';
@@ -47,10 +46,7 @@ final appRouter = GoRouter(
         }
       },
     ),
-    GoRoute(
-      path: '/savings-goals',
-      builder: (context, state) => const SavingsGoalsScreen(),
-    ),
+
     GoRoute(
       path: '/add-savings-goal',
       builder: (context, state) {
@@ -73,16 +69,8 @@ final appRouter = GoRouter(
       routes: [
         GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
         GoRoute(
-          path: '/education',
-          builder: (context, state) => const EducationScreen(),
-          routes: [
-            GoRoute(
-              path: 'admin',
-              parentNavigatorKey:
-                  _rootNavigatorKey, // Full screen, cover nav bar
-              builder: (context, state) => const AdminPanelScreen(),
-            ),
-          ],
+          path: '/savings-goals',
+          builder: (context, state) => const SavingsGoalsScreen(),
         ),
         GoRoute(
           path: '/expenses',

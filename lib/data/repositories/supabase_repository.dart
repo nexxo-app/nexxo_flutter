@@ -227,7 +227,7 @@ class SupabaseRepository {
     }
   }
 
-  // --- Savings & Education ---
+  // --- Savings ---
 
   Future<List<SavingsGoal>> getSavingsGoals() async {
     try {
@@ -303,21 +303,6 @@ class SupabaseRepository {
           .eq('id', id);
     } catch (e) {
       throw Exception('Erro ao atualizar meta: $e');
-    }
-  }
-
-  Future<List<Lesson>> getLessons() async {
-    try {
-      final data = await _client
-          .from('lessons')
-          .select()
-          .eq('is_published', true)
-          .order('id', ascending: true);
-
-      return (data as List).map((e) => Lesson.fromJson(e)).toList();
-    } catch (e) {
-      debugPrint('Error fetching lessons: $e');
-      return [];
     }
   }
 
