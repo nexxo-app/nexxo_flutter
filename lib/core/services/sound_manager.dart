@@ -41,9 +41,18 @@ class SoundManager {
   /// Plays a sound when a goal is saved or completed.
   Future<void> playGoalComplete() async {
     try {
-      await _player.play(AssetSource('sounds/goal_complete.mp3'), volume: 0.5);
+      await _player.play(AssetSource('sounds/success.mp3'), volume: 0.5);
     } catch (e) {
       debugPrint('SoundManager: Could not play goal complete sound: $e');
+    }
+  }
+
+  /// Plays a sound when an item is deleted.
+  Future<void> playDelete() async {
+    try {
+      await _player.play(AssetSource('sounds/delete.mp3'), volume: 0.5);
+    } catch (e) {
+      debugPrint('SoundManager: Could not play delete sound: $e');
     }
   }
 

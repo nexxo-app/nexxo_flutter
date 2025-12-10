@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../data/models/supabase_models.dart';
 import '../../../../data/repositories/supabase_repository.dart';
 import '../../../widgets/glass_container.dart';
+import '../../../../core/services/sound_manager.dart';
 
 class TransactionList extends StatelessWidget {
   final List<TransactionModel> transactions;
@@ -155,6 +156,8 @@ final class _TransactionItem extends StatelessWidget {
                       await SupabaseRepository().deleteTransaction(
                         transaction.id,
                       );
+                      // Play delete sound
+                      await SoundManager().playDelete();
                       onRefresh?.call();
                     } catch (e) {
                       if (context.mounted) {

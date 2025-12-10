@@ -5,6 +5,7 @@ import '../../presentation/screens/profile/profile_screen.dart';
 import '../../presentation/screens/profile/edit_profile_screen.dart';
 import '../../presentation/widgets/bottom_nav_bar.dart';
 import '../../presentation/screens/home/home_screen.dart';
+import '../../presentation/screens/reports/reports_screen.dart';
 
 import '../../presentation/screens/expenses/expenses_screen.dart';
 import '../../presentation/screens/auth/login_screen.dart';
@@ -79,6 +80,14 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/profile',
           builder: (context, state) => const ProfileScreen(),
+        ),
+        GoRoute(
+          path: '/reports',
+          builder: (context, state) {
+            final tab = state.uri.queryParameters['tab'];
+            final initialIndex = tab == 'goals' ? 1 : 0;
+            return ReportsScreen(initialTabIndex: initialIndex);
+          },
         ),
       ],
     ),

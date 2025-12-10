@@ -333,7 +333,12 @@ class _AddSavingsGoalScreenState extends State<AddSavingsGoalScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 100), // Bottom padding for scrollability
+            SizedBox(
+              height:
+                  100 +
+                  MediaQuery.of(context).padding.bottom +
+                  kBottomNavigationBarHeight,
+            ),
           ],
         ),
       ),

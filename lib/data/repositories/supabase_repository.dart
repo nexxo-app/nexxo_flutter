@@ -381,33 +381,72 @@ class SupabaseRepository {
     try {
       final userId = _client.auth.currentUser?.id;
 
-      // Fetch system default categories (user_id is null) AND user specific categories
+      // 1. Fetch Categories
       var query = _client.from('categories').select();
-
       if (userId != null) {
         query = query.or('user_id.is.null,user_id.eq.$userId');
       } else {
         query = query.filter('user_id', 'is', 'null');
       }
+      final categoriesData = await query;
+      final categories = (categoriesData as List)
+          .map((e) => CategoryModel.fromJson(e))
+          .toList();
 
-      final data = await query;
-      return (data as List).map((e) => CategoryModel.fromJson(e)).toList();
+      // 2. Fetch User Budgets
+      if (userId != null) {
+        final budgetsData = await _client
+            .from('category_budgets')
+            .select()
+            .eq('user_id', userId);
+
+        // Map category_id -> budget_percent
+        final budgetMap = {
+          for (var b in (budgetsData as List))
+            b['category_id'] as String: (b['budget_limit_percent'] as num)
+                .toDouble(),
+        };
+
+        // 3. Merge
+        return categories.map((cat) {
+          return CategoryModel(
+            id: cat.id,
+            name: cat.name,
+            type: cat.type,
+            icon: cat.icon,
+            color: cat.color,
+            budgetLimitPercent:
+                budgetMap[cat.id] ?? 0, // Default to 0 if not set
+          );
+        }).toList();
+      }
+
+      return categories;
     } catch (e) {
       debugPrint('Error fetching categories: $e');
       return [];
     }
   }
 
-  /// Updates the budget limit for a specific category.
+  /// Updates the budget limit for a specific category using the dedicated table.
   Future<void> updateCategoryBudget(
     String categoryId,
     double newLimitPercent,
   ) async {
     try {
-      await _client
-          .from('categories')
-          .update({'budget_limit_percent': newLimitPercent})
-          .eq('id', categoryId);
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) throw Exception('User not authenticated');
+
+      // Uses UPSERT logic (on_conflict)
+      await _client.from('category_budgets').upsert(
+        {
+          'user_id': userId,
+          'category_id': categoryId,
+          'budget_limit_percent': newLimitPercent,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        onConflict: 'user_id, category_id', // Matches the unique constraint
+      );
     } catch (e) {
       debugPrint('Error updating category budget: $e');
       rethrow;

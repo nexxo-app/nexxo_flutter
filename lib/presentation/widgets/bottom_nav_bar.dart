@@ -37,6 +37,13 @@ class GlassBottomNavBar extends StatelessWidget {
               onTap: () => context.go('/'),
             ),
             _NavBarItem(
+              icon: Icons.bar_chart_rounded,
+              label: 'Relatórios',
+              isSelected:
+                  GoRouterState.of(context).uri.toString() == '/reports',
+              onTap: () => context.go('/reports'),
+            ),
+            _NavBarItem(
               icon: Icons.flag_rounded,
               label: 'Metas',
               isSelected:

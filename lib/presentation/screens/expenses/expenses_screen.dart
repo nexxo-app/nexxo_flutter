@@ -5,6 +5,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../data/models/supabase_models.dart';
 import '../../../../data/repositories/supabase_repository.dart';
 import '../../widgets/glass_container.dart';
+import '../../../../core/services/sound_manager.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -86,58 +87,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   String _formatCategoryName(String rawName) {
     return rawName.replaceAll(RegExp(r'\s*\([RD]\)$'), '');
-  }
-
-  Future<void> _showEditBudgetDialog(CategoryModel category) async {
-    final controller = TextEditingController(
-      text: category.budgetLimitPercent?.toStringAsFixed(0) ?? '',
-    );
-
-    final result = await showDialog<double>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Editar Meta: ${_formatCategoryName(category.name)}'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Meta (% da renda)',
-            suffixText: '%',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final value = double.tryParse(controller.text);
-              Navigator.pop(context, value);
-            },
-            child: const Text('Salvar'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null && mounted) {
-      try {
-        await _repository.updateCategoryBudget(category.id, result);
-        _loadExpensesData();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Meta atualizada com sucesso!')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Erro ao atualizar: $e')));
-        }
-      }
-    }
   }
 
   String _getMonthName(int month) {
@@ -382,8 +331,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           percentageOfTotal: percentage,
                           budgetLimit: budgetLimit,
                           categoryModel: categoryModel,
-                          onEditBudget: () =>
-                              _showEditBudgetDialog(categoryModel!),
+                          onEditBudget: () => context.go('/reports?tab=goals'),
                         );
                       }).toList(),
                     ),
@@ -1070,6 +1018,7 @@ final class _TransactionListItem extends StatelessWidget {
                     await SupabaseRepository().deleteTransaction(
                       transaction.id,
                     );
+                    await SoundManager().playDelete();
                     onRefresh?.call();
                   } catch (e) {
                     if (context.mounted) {
