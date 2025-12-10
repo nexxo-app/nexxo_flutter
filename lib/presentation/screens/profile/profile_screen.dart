@@ -80,7 +80,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     CircleAvatar(
                       radius: 50,
-                      backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+                      backgroundColor: AppTheme.primaryColor.withValues(
+                        alpha: 0.2,
+                      ),
                       backgroundImage: _profile?.avatarUrl != null
                           ? NetworkImage(_profile!.avatarUrl!)
                           : null,
@@ -157,7 +159,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       title: const Text('Tema Escuro'),
                       trailing: Switch.adaptive(
                         value: isDark,
-                        activeColor: AppTheme.primaryColor,
+                        activeThumbColor: AppTheme.primaryColor,
                         onChanged: (value) {
                           themeNotifier.toggleTheme(value);
                         },
@@ -170,7 +172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               // Logout Button
               GlassContainer(
-                color: Colors.red.withOpacity(0.1),
+                color: Colors.red.withValues(alpha: 0.1),
                 child: ListTile(
                   leading: const Icon(Icons.logout, color: Colors.red),
                   title: const Text(

@@ -102,7 +102,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 children: [
                   CircleAvatar(
                     radius: 60,
-                    backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+                    backgroundColor: AppTheme.primaryColor.withValues(
+                      alpha: 0.2,
+                    ),
                     backgroundImage: widget.profile?.avatarUrl != null
                         ? NetworkImage(widget.profile!.avatarUrl!)
                         : null,

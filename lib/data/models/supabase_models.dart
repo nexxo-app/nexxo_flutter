@@ -111,3 +111,34 @@ class SavingsGoal {
     );
   }
 }
+
+class CategoryModel {
+  final String id;
+  final String name;
+  final String type;
+  final String icon;
+  final String color;
+  final double? budgetLimitPercent;
+
+  CategoryModel({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.icon,
+    required this.color,
+    this.budgetLimitPercent,
+  });
+
+  factory CategoryModel.fromJson(Map<String, dynamic> json) {
+    return CategoryModel(
+      id: json['id'],
+      name: json['name'],
+      type: json['type'],
+      icon: json['icon'] ?? 'category',
+      color: json['color'] ?? '0xFF9E9E9E',
+      budgetLimitPercent: json['budget_limit_percent'] != null
+          ? (json['budget_limit_percent'] as num).toDouble()
+          : null,
+    );
+  }
+}

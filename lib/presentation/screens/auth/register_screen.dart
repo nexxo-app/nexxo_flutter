@@ -83,8 +83,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.secondaryColor.withOpacity(0.2),
-              AppTheme.primaryColor.withOpacity(0.1),
+              AppTheme.secondaryColor.withValues(alpha: 0.2),
+              AppTheme.primaryColor.withValues(alpha: 0.1),
             ],
           ),
         ),

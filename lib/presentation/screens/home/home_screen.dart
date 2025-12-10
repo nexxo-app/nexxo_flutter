@@ -106,7 +106,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 20),
                   QuickActions(onRefresh: _refreshData),
                   const SizedBox(height: 20),
-                  TransactionList(transactions: transactions ?? []),
+                  TransactionList(
+                    transactions: transactions ?? [],
+                    onRefresh: _refreshData,
+                  ),
                   const SizedBox(height: 100), // Bottom padding for nav bar
                 ],
               ),

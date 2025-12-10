@@ -5,6 +5,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../data/models/supabase_models.dart';
 import '../../../../data/repositories/supabase_repository.dart';
 import '../../widgets/glass_container.dart';
+import '../../../../core/services/sound_manager.dart';
 
 class AddSavingsGoalScreen extends StatefulWidget {
   final SavingsGoal? goal;
@@ -133,6 +134,7 @@ class _AddSavingsGoalScreenState extends State<AddSavingsGoalScreen> {
       }
 
       if (mounted) {
+        SoundManager().playGoalComplete();
         context.pop(true);
       }
     } catch (e) {

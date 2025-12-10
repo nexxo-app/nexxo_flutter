@@ -23,7 +23,7 @@ class AppTheme {
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
         brightness: Brightness.light,
-        background: backgroundLight,
+
         surface: surfaceLight,
       ),
       scaffoldBackgroundColor: backgroundLight,
@@ -49,7 +49,7 @@ class AppTheme {
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
         brightness: Brightness.dark,
-        background: backgroundDark,
+
         surface: surfaceDark,
       ),
       scaffoldBackgroundColor: backgroundDark,
@@ -75,15 +75,15 @@ class AppTheme {
       borderRadius: BorderRadius.circular(24), // Slightly more rounded
       border: Border.all(
         color: isDark
-            ? Colors.white.withOpacity(0.1)
-            : Colors.white.withOpacity(
-                0.6,
+            ? Colors.white.withValues(alpha: 0.1)
+            : Colors.white.withValues(
+                alpha: 0.6,
               ), // Increased visibility for light mode
         width: 1.0,
       ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.05), // Softer shadow
+          color: Colors.black.withValues(alpha: 0.05), // Softer shadow
           blurRadius: 16,
           spreadRadius: 0,
           offset: const Offset(0, 4),

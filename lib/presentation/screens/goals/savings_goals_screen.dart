@@ -114,7 +114,7 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: color.withOpacity(0.1),
+                              color: color.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
@@ -197,7 +197,7 @@ class _SavingsGoalsScreenState extends State<SavingsGoalsScreen> {
                         borderRadius: BorderRadius.circular(10),
                         child: LinearProgressIndicator(
                           value: progress.clamp(0.0, 1.0),
-                          backgroundColor: color.withOpacity(0.1),
+                          backgroundColor: color.withValues(alpha: 0.1),
                           color: color,
                           minHeight: 12,
                         ),

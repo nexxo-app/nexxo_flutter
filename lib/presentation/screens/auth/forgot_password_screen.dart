@@ -76,8 +76,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppTheme.primaryColor.withOpacity(0.2),
-              AppTheme.secondaryColor.withOpacity(0.1),
+              AppTheme.primaryColor.withValues(alpha: 0.2),
+              AppTheme.secondaryColor.withValues(alpha: 0.1),
             ],
           ),
         ),

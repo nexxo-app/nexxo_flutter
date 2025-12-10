@@ -109,8 +109,9 @@ class SupabaseRepository {
   Future<Map<String, double>> getFinancialSummary() async {
     try {
       final userId = _client.auth.currentUser?.id;
-      if (userId == null)
+      if (userId == null) {
         return {'balance': 0.0, 'income': 0.0, 'expense': 0.0};
+      }
 
       // This is a simplified calculation. Ideally, use Supabase RPC or aggregate queries.
       final transactions = await _client
@@ -136,8 +137,15 @@ class SupabaseRepository {
         'expense': expense,
       };
     } catch (e) {
-      debugPrint('Error fetching summary: $e');
       return {'balance': 0.0, 'income': 0.0, 'expense': 0.0};
+    }
+  }
+
+  Future<void> deleteTransaction(String id) async {
+    try {
+      await _client.from('transactions').delete().eq('id', id);
+    } catch (e) {
+      throw Exception('Erro ao deletar transação: $e');
     }
   }
 
@@ -148,8 +156,9 @@ class SupabaseRepository {
   ) async {
     try {
       final userId = _client.auth.currentUser?.id;
-      if (userId == null)
+      if (userId == null) {
         return {'balance': 0.0, 'income': 0.0, 'expense': 0.0};
+      }
 
       // Calculate date range for the month
       final startDate = DateTime(year, month, 1);
@@ -365,6 +374,43 @@ class SupabaseRepository {
           .eq('id', userId);
     } catch (e) {
       throw Exception('Erro ao atualizar perfil: $e');
+    }
+  }
+
+  Future<List<CategoryModel>> getCategories() async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+
+      // Fetch system default categories (user_id is null) AND user specific categories
+      var query = _client.from('categories').select();
+
+      if (userId != null) {
+        query = query.or('user_id.is.null,user_id.eq.$userId');
+      } else {
+        query = query.filter('user_id', 'is', 'null');
+      }
+
+      final data = await query;
+      return (data as List).map((e) => CategoryModel.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('Error fetching categories: $e');
+      return [];
+    }
+  }
+
+  /// Updates the budget limit for a specific category.
+  Future<void> updateCategoryBudget(
+    String categoryId,
+    double newLimitPercent,
+  ) async {
+    try {
+      await _client
+          .from('categories')
+          .update({'budget_limit_percent': newLimitPercent})
+          .eq('id', categoryId);
+    } catch (e) {
+      debugPrint('Error updating category budget: $e');
+      rethrow;
     }
   }
 }

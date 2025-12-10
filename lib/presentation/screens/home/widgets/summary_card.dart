@@ -71,12 +71,12 @@ class _SummaryCardState extends State<SummaryCard> {
             end: Alignment.bottomRight,
             colors: [
               AppTheme.primaryColor,
-              AppTheme.primaryColor.withOpacity(0.8),
+              AppTheme.primaryColor.withValues(alpha: 0.8),
             ],
           ),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryColor.withOpacity(0.3),
+              color: AppTheme.primaryColor.withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -94,7 +94,7 @@ class _SummaryCardState extends State<SummaryCard> {
                   width: 150,
                   height: 150,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -106,7 +106,7 @@ class _SummaryCardState extends State<SummaryCard> {
                   width: 120,
                   height: 120,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -133,7 +133,7 @@ class _SummaryCardState extends State<SummaryCard> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
@@ -160,7 +160,7 @@ class _SummaryCardState extends State<SummaryCard> {
                                 const SizedBox(width: 4),
                                 Icon(
                                   Icons.swap_horiz_rounded,
-                                  color: Colors.white.withOpacity(0.7),
+                                  color: Colors.white.withValues(alpha: 0.7),
                                   size: 16,
                                 ),
                               ],
@@ -187,7 +187,7 @@ class _SummaryCardState extends State<SummaryCard> {
                     Text(
                       _showMonthly ? 'Saldo do Mês' : 'Saldo Total',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -208,7 +208,7 @@ class _SummaryCardState extends State<SummaryCard> {
                           value: formatCurrency(income),
                           color: Colors.white,
                           icon: Icons.arrow_upward_rounded,
-                          iconBgColor: Colors.white.withOpacity(0.2),
+                          iconBgColor: Colors.white.withValues(alpha: 0.2),
                         ),
                         const SizedBox(width: 24),
                         _SummaryItem(
@@ -216,7 +216,7 @@ class _SummaryCardState extends State<SummaryCard> {
                           value: formatCurrency(expense),
                           color: Colors.white,
                           icon: Icons.arrow_downward_rounded,
-                          iconBgColor: Colors.white.withOpacity(0.2),
+                          iconBgColor: Colors.white.withValues(alpha: 0.2),
                         ),
                       ],
                     ),
@@ -261,7 +261,10 @@ class _SummaryItem extends StatelessWidget {
           children: [
             Text(
               label,
-              style: TextStyle(color: color.withOpacity(0.8), fontSize: 12),
+              style: TextStyle(
+                color: color.withValues(alpha: 0.8),
+                fontSize: 12,
+              ),
             ),
             Text(
               value,

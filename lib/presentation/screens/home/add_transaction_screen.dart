@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../widgets/glass_container.dart';
 import '../../../../data/models/supabase_models.dart';
 import '../../../../data/repositories/supabase_repository.dart';
+import '../../../../core/services/sound_manager.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final String? initialType;
@@ -24,6 +25,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   String _category = 'Outros';
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
+  List<CategoryModel> _categories = [];
 
   Key _rebuildKey = UniqueKey();
 
@@ -42,6 +44,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     } else {
       _type = widget.initialType ?? 'expense';
     }
+    _loadCategories();
   }
 
   @override
@@ -64,17 +67,41 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     });
   }
 
-  final List<String> _categories = [
-    'Alimentação',
-    'Transporte',
-    'Moradia',
-    'Lazer',
-    'Saúde',
-    'Educação',
-    'Salário',
-    'Investimentos',
-    'Outros',
-  ];
+  void _updateCategoryForType() {
+    final categoriesForType = _categories
+        .where((c) => c.type == _type)
+        .toList();
+    if (categoriesForType.isNotEmpty) {
+      if (!categoriesForType.any((c) => c.name == _category)) {
+        // Try to find a default "Outros" or fallback to first
+        final defaultCat = categoriesForType.firstWhere(
+          (c) => c.name.startsWith('Outros'),
+          orElse: () => categoriesForType.first,
+        );
+        _category = defaultCat.name;
+      }
+    } else {
+      // Fallback if no categories loaded yet (shouldn't happen often if loader works)
+      _category = _type == 'income' ? 'Salário' : 'Alimentação';
+    }
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final repository = SupabaseRepository();
+      final categories = await repository.getCategories();
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+          _updateCategoryForType();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        // Fallback or error handling
+      }
+    }
+  }
 
   Future<void> _saveTransaction() async {
     if (_titleController.text.isEmpty || _amountController.text.isEmpty) {
@@ -109,6 +136,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       }
 
       if (mounted) {
+        if (_type == 'income') {
+          SoundManager().playIncome();
+        } else {
+          SoundManager().playExpense();
+        }
         context.pop(true);
       }
     } catch (e) {
@@ -136,6 +168,53 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           onPressed: () => context.pop(),
         ),
         actions: [
+          if (isEditing && !_isLoading)
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Excluir Transação'),
+                    content: const Text(
+                      'Tem certeza que deseja excluir esta transação?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancelar'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text(
+                          'Excluir',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  if (!context.mounted) return;
+                  setState(() => _isLoading = true);
+
+                  try {
+                    await SupabaseRepository().deleteTransaction(
+                      widget.transaction!.id,
+                    );
+                    if (!context.mounted) return;
+                    context.pop(true);
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Erro ao excluir: $e')),
+                    );
+                    setState(() => _isLoading = false);
+                  }
+                }
+              },
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: _isLoading
@@ -175,7 +254,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     child: GestureDetector(
                       onTap: () {
                         _unfocusAndRebuild();
-                        setState(() => _type = 'expense');
+                        setState(() {
+                          _type = 'expense';
+                          _updateCategoryForType();
+                        });
                       },
                       child: GlassContainer(
                         color: _type == 'expense'
@@ -201,7 +283,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     child: GestureDetector(
                       onTap: () {
                         _unfocusAndRebuild();
-                        setState(() => _type = 'income');
+                        setState(() {
+                          _type = 'income';
+                          _updateCategoryForType();
+                        });
                       },
                       child: GlassContainer(
                         color: _type == 'income'
@@ -262,10 +347,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         border: InputBorder.none,
                         prefixIcon: Icon(Icons.category_outlined),
                       ),
-                      items: _categories.map((String category) {
+                      items: _categories.where((c) => c.type == _type).map((
+                        CategoryModel category,
+                      ) {
                         return DropdownMenuItem<String>(
-                          value: category,
-                          child: Text(category),
+                          value: category.name,
+                          child: Row(
+                            children: [
+                              // Optional: Show icon
+                              // Icon(getIconData(category.icon)),
+                              // SizedBox(width: 8),
+                              Text(category.name),
+                            ],
+                          ),
                         );
                       }).toList(),
                       onChanged: (String? newValue) {

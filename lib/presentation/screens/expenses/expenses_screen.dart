@@ -25,6 +25,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   Map<String, double> _summary = {};
   List<TransactionModel> _transactions = [];
   Map<String, double> _expensesByCategory = {};
+  Map<String, double> _prevSummary = {}; // To store previous month's summary
+
+  Map<String, CategoryModel> _categoryMap = {};
 
   @override
   void initState() {
@@ -44,6 +47,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       _selectedYear,
       _selectedMonth,
     );
+    final categories = await _repository.getCategories();
+    final categoryMap = {for (var c in categories) c.name: c};
 
     // Separate expenses for category grouping
     final expenses = transactions.where((t) => t.type == 'expense').toList();
@@ -55,13 +60,83 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           (expensesByCategory[expense.category] ?? 0) + expense.amount;
     }
 
+    // Load previous month data for comparison
+    int prevMonth = _selectedMonth - 1;
+    int prevYear = _selectedYear;
+    if (prevMonth == 0) {
+      prevMonth = 12;
+      prevYear--;
+    }
+    final prevSummary = await _repository.getFinancialSummaryByMonth(
+      prevYear,
+      prevMonth,
+    );
+
     if (mounted) {
       setState(() {
         _summary = summary;
+        _prevSummary = prevSummary;
         _transactions = transactions;
+        _categoryMap = categoryMap;
         _expensesByCategory = expensesByCategory;
         _isInitialLoading = false;
       });
+    }
+  }
+
+  String _formatCategoryName(String rawName) {
+    return rawName.replaceAll(RegExp(r'\s*\([RD]\)$'), '');
+  }
+
+  Future<void> _showEditBudgetDialog(CategoryModel category) async {
+    final controller = TextEditingController(
+      text: category.budgetLimitPercent?.toStringAsFixed(0) ?? '',
+    );
+
+    final result = await showDialog<double>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Editar Meta: ${_formatCategoryName(category.name)}'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Meta (% da renda)',
+            suffixText: '%',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = double.tryParse(controller.text);
+              Navigator.pop(context, value);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && mounted) {
+      try {
+        await _repository.updateCategoryBudget(category.id, result);
+        _loadExpensesData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Meta atualizada com sucesso!')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Erro ao atualizar: $e')));
+        }
+      }
     }
   }
 
@@ -235,6 +310,18 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   expense: totalExpense,
                 ),
 
+                const SizedBox(height: 20),
+
+                // Comparative Insights
+                if (!_isInitialLoading)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _ExpenseInsightsCard(
+                      currentExpense: totalExpense,
+                      previousExpense: _prevSummary['expense'] ?? 0.0,
+                    ),
+                  ),
+
                 const SizedBox(height: 28),
 
                 // Expenses by Category Section
@@ -280,10 +367,23 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         final percentage = totalExpense > 0
                             ? (entry.value / totalExpense * 100)
                             : 0.0;
+                        final categoryModel = _categoryMap[entry.key];
+                        double? budgetLimit;
+                        if (categoryModel?.budgetLimitPercent != null &&
+                            totalIncome > 0) {
+                          budgetLimit =
+                              (categoryModel!.budgetLimitPercent! / 100) *
+                              totalIncome;
+                        }
+
                         return _CategoryExpenseCard(
-                          category: entry.key,
+                          categoryName: _formatCategoryName(entry.key),
                           amount: entry.value,
-                          percentage: percentage,
+                          percentageOfTotal: percentage,
+                          budgetLimit: budgetLimit,
+                          categoryModel: categoryModel,
+                          onEditBudget: () =>
+                              _showEditBudgetDialog(categoryModel!),
                         );
                       }).toList(),
                     ),
@@ -336,15 +436,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                             .map(
                               (transaction) => _TransactionListItem(
                                 transaction: transaction,
-                                onEdit: () async {
-                                  final result = await context.push(
-                                    '/add-transaction',
-                                    extra: transaction,
-                                  );
-                                  if (result == true) {
-                                    _loadExpensesData();
-                                  }
-                                },
+                                onRefresh: _loadExpensesData,
                               ),
                             )
                             .toList(),
@@ -562,20 +654,34 @@ class _BalanceItem extends StatelessWidget {
 }
 
 class _CategoryExpenseCard extends StatelessWidget {
-  final String category;
+  final String categoryName;
   final double amount;
-  final double percentage;
+  final double percentageOfTotal;
+  final double? budgetLimit;
+  final CategoryModel? categoryModel;
+  final VoidCallback? onEditBudget;
 
   const _CategoryExpenseCard({
-    required this.category,
+    required this.categoryName,
     required this.amount,
-    required this.percentage,
+    required this.percentageOfTotal,
+    this.budgetLimit,
+    this.categoryModel,
+    this.onEditBudget,
   });
 
   IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
+    // Sanitize for switch matching just in case, though we pass formatted name
+    final normalized = category.toLowerCase();
+    if (normalized.contains('alimentação')) return Icons.restaurant_rounded;
+    if (normalized.contains('mercado')) return Icons.shopping_cart_rounded;
+
+    // ... complete standard switch or simplified lookup
+    switch (normalized) {
       case 'alimentação':
         return Icons.restaurant_rounded;
+      case 'mercado':
+        return Icons.shopping_cart_rounded;
       case 'transporte':
         return Icons.directions_car_rounded;
       case 'moradia':
@@ -590,13 +696,45 @@ class _CategoryExpenseCard extends StatelessWidget {
         return Icons.attach_money_rounded;
       case 'investimentos':
         return Icons.trending_up_rounded;
+      case 'compras':
+        return Icons.shopping_bag_rounded;
+      case 'contas':
+        return Icons.receipt_long_rounded;
+      case 'presente':
+        return Icons.card_giftcard_rounded;
+      case 'freelance':
+        return Icons.work_rounded;
+      case 'bônus':
+        return Icons.star_rounded;
+      case 'reembolso':
+        return Icons.replay_rounded;
+      case 'viagem':
+        return Icons.flight_rounded;
+      case 'pets':
+        return Icons.pets_rounded;
+      case 'assinaturas':
+        return Icons.subscriptions_rounded;
+      case 'eletrônicos':
+        return Icons.devices_rounded;
+      case 'cuidados pessoais':
+        return Icons.spa_rounded;
       default:
+        // Fallback for suffixes like (R) if they weren't stripped properly or for new variants
+        if (normalized.startsWith('outros')) return Icons.category_rounded;
         return Icons.category_rounded;
     }
   }
 
   Color _getCategoryColor(String category) {
-    switch (category.toLowerCase()) {
+    if (categoryModel != null) {
+      try {
+        return Color(int.parse(categoryModel!.color));
+      } catch (_) {}
+    }
+    // Fallback colors
+    // Fallback colors logic adjusted for formatted names
+    final normalized = category.toLowerCase();
+    switch (normalized) {
       case 'alimentação':
         return Colors.orange;
       case 'transporte':
@@ -613,6 +751,20 @@ class _CategoryExpenseCard extends StatelessWidget {
         return Colors.green;
       case 'investimentos':
         return Colors.indigo;
+      case 'bônus':
+        return Colors.amber;
+      case 'reembolso':
+        return Colors.green;
+      case 'viagem':
+        return Colors.pink;
+      case 'pets':
+        return Colors.brown;
+      case 'assinaturas':
+        return Colors.blueGrey;
+      case 'eletrônicos':
+        return Colors.indigo;
+      case 'cuidados pessoais':
+        return Colors.pink;
       default:
         return Colors.grey;
     }
@@ -620,65 +772,137 @@ class _CategoryExpenseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _getCategoryColor(category);
+    final color = _getCategoryColor(categoryName);
+
+    // Budget Logic
+    final hasBudget = budgetLimit != null && budgetLimit! > 0;
+    final budgetProgress = hasBudget
+        ? (amount / budgetLimit!).clamp(0.0, 1.0)
+        : 0.0;
+    final isOverBudget = hasBudget && amount > budgetLimit!;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GlassContainer(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withAlpha(38), // 0.15
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(_getCategoryIcon(category), color: color, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    category,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: percentage / 100,
-                      backgroundColor: color.withAlpha(38), // 0.15
-                      color: color,
-                      minHeight: 6,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            Row(
               children: [
-                Text(
-                  'R\$ ${amount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withAlpha(38), // 0.15
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    _getCategoryIcon(categoryName),
                     color: color,
+                    size: 24,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${percentage.toStringAsFixed(1)}%',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        categoryName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      if (hasBudget)
+                        Text(
+                          isOverBudget
+                              ? 'Acima da meta!'
+                              : '${(budgetProgress * 100).toStringAsFixed(0)}% da meta',
+                          style: TextStyle(
+                            color: isOverBudget ? Colors.red : Colors.grey[500],
+                            fontSize: 12,
+                            fontWeight: isOverBudget
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        )
+                      else
+                        Text(
+                          '${percentageOfTotal.toStringAsFixed(1)}% dos gastos',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 13,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'R\$ ${amount.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: color,
+                      ),
+                    ),
+                    if (hasBudget)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '/ R\$ ${budgetLimit!.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                // Edit Budget Icon
+                if (categoryModel != null && categoryModel!.id.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.edit_rounded,
+                        color: Colors.grey[400],
+                        size: 20,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: onEditBudget,
+                    ),
+                  ),
               ],
             ),
+            if (hasBudget) ...[
+              const SizedBox(height: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: budgetProgress,
+                  backgroundColor: color.withAlpha(38),
+                  color: isOverBudget ? Colors.red : color,
+                  minHeight: 6,
+                ),
+              ),
+            ] else ...[
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: percentageOfTotal / 100,
+                  backgroundColor: color.withAlpha(38),
+                  color: color,
+                  minHeight: 6,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -686,14 +910,18 @@ class _CategoryExpenseCard extends StatelessWidget {
   }
 }
 
-class _TransactionListItem extends StatelessWidget {
+final class _TransactionListItem extends StatelessWidget {
   final TransactionModel transaction;
-  final VoidCallback? onEdit;
+  final VoidCallback? onRefresh;
 
-  const _TransactionListItem({required this.transaction, this.onEdit});
+  const _TransactionListItem({required this.transaction, this.onRefresh});
 
   IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
+    // Use a cleaned name for mapping
+    final cleanName = category
+        .replaceAll(RegExp(r'\s*\([RD]\)$'), '')
+        .toLowerCase();
+    switch (cleanName) {
       case 'alimentação':
         return Icons.restaurant_rounded;
       case 'transporte':
@@ -710,6 +938,20 @@ class _TransactionListItem extends StatelessWidget {
         return Icons.attach_money_rounded;
       case 'investimentos':
         return Icons.trending_up_rounded;
+      case 'bônus':
+        return Icons.star_rounded;
+      case 'reembolso':
+        return Icons.replay_rounded;
+      case 'viagem':
+        return Icons.flight_rounded;
+      case 'pets':
+        return Icons.pets_rounded;
+      case 'assinaturas':
+        return Icons.subscriptions_rounded;
+      case 'eletrônicos':
+        return Icons.devices_rounded;
+      case 'cuidados pessoais':
+        return Icons.spa_rounded;
       default:
         return Icons.category_rounded;
     }
@@ -719,9 +961,21 @@ class _TransactionListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isExpense = transaction.type == 'expense';
     final color = isExpense ? Colors.red : Colors.green;
+    final categoryName = transaction.category.replaceAll(
+      RegExp(r'\s*\([RD]\)$'),
+      '',
+    );
 
     return InkWell(
-      onTap: onEdit,
+      onTap: () async {
+        final result = await context.push(
+          '/add-transaction',
+          extra: transaction,
+        );
+        if (result == true) {
+          onRefresh?.call();
+        }
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
@@ -753,9 +1007,22 @@ class _TransactionListItem extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    DateFormat('dd/MM').format(transaction.date),
-                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                  Row(
+                    children: [
+                      Text(
+                        categoryName,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        DateFormat('dd/MM').format(transaction.date),
+                        style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -769,13 +1036,128 @@ class _TransactionListItem extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: Colors.grey[400],
-              size: 20,
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded, size: 20),
+              color: Colors.red,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Excluir Transação'),
+                    content: const Text(
+                      'Tem certeza que deseja excluir esta transação?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancelar'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text(
+                          'Excluir',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true && context.mounted) {
+                  try {
+                    await SupabaseRepository().deleteTransaction(
+                      transaction.id,
+                    );
+                    onRefresh?.call();
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Erro ao excluir: $e')),
+                      );
+                    }
+                  }
+                }
+              },
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ExpenseInsightsCard extends StatelessWidget {
+  final double currentExpense;
+  final double previousExpense;
+
+  const _ExpenseInsightsCard({
+    required this.currentExpense,
+    required this.previousExpense,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (previousExpense <= 0) return const SizedBox.shrink();
+
+    final diff = currentExpense - previousExpense;
+    final isHigher = diff > 0;
+    final percent = (diff.abs() / previousExpense) * 100;
+
+    return GlassContainer(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: (isHigher ? Colors.red : Colors.green).withAlpha(26),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isHigher
+                  ? Icons.trending_up_rounded
+                  : Icons.trending_down_rounded,
+              color: isHigher ? Colors.red : Colors.green,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isHigher ? 'Gastos Aumentaram' : 'Gastos Diminuíram',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  'Você gastou R\$ ${diff.abs().toStringAsFixed(2)} '
+                  '${isHigher ? 'a mais' : 'a menos'} que no mês passado.',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: (isHigher ? Colors.red : Colors.green).withAlpha(26),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '${isHigher ? '+' : '-'}${percent.toStringAsFixed(1)}%',
+              style: TextStyle(
+                color: isHigher ? Colors.red : Colors.green,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
