@@ -22,46 +22,50 @@ class GlassBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currentRoute = GoRouterState.of(context).uri.toString();
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: GlassContainer(
         height: 70,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _NavBarItem(
               icon: Icons.home_rounded,
               label: 'Início',
-              isSelected: GoRouterState.of(context).uri.toString() == '/',
+              isSelected: currentRoute == '/',
               onTap: () => context.go('/'),
             ),
             _NavBarItem(
-              icon: Icons.bar_chart_rounded,
-              label: 'Relatórios',
-              isSelected:
-                  GoRouterState.of(context).uri.toString() == '/reports',
-              onTap: () => context.go('/reports'),
+              icon: Icons.emoji_events_rounded,
+              label: 'Ranking',
+              isSelected: currentRoute == '/ranking',
+              onTap: () => context.go('/ranking'),
             ),
             _NavBarItem(
               icon: Icons.flag_rounded,
               label: 'Metas',
-              isSelected:
-                  GoRouterState.of(context).uri.toString() == '/savings-goals',
+              isSelected: currentRoute == '/savings-goals',
               onTap: () => context.go('/savings-goals'),
             ),
             _NavBarItem(
               icon: Icons.account_balance_wallet_rounded,
               label: 'Gastos',
-              isSelected:
-                  GoRouterState.of(context).uri.toString() == '/expenses',
+              isSelected: currentRoute == '/expenses',
               onTap: () => context.go('/expenses'),
+            ),
+            _NavBarItem(
+              icon: Icons.bar_chart_rounded,
+              label: 'Relatórios',
+              isSelected: currentRoute == '/reports',
+              onTap: () => context.go('/reports'),
             ),
             _NavBarItem(
               icon: Icons.person_rounded,
               label: 'Perfil',
-              isSelected:
-                  GoRouterState.of(context).uri.toString() == '/profile',
+              isSelected: currentRoute == '/profile',
               onTap: () => context.go('/profile'),
             ),
           ],

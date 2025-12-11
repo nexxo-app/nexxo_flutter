@@ -56,6 +56,34 @@ class SoundManager {
     }
   }
 
+  /// Plays a sound when a mission is completed.
+  Future<void> playMissionComplete() async {
+    try {
+      await _player.play(AssetSource('sounds/success.mp3'), volume: 0.7);
+    } catch (e) {
+      debugPrint('SoundManager: Could not play mission complete sound: $e');
+    }
+  }
+
+  /// Plays a celebratory sound when user levels up (changes league).
+  Future<void> playLevelUp() async {
+    try {
+      // Using success sound with higher volume for level up celebration
+      await _player.play(AssetSource('sounds/success.mp3'), volume: 1.0);
+    } catch (e) {
+      debugPrint('SoundManager: Could not play level up sound: $e');
+    }
+  }
+
+  /// Plays a sound when XP is earned.
+  Future<void> playXpEarned() async {
+    try {
+      await _player.play(AssetSource('sounds/income.mp3'), volume: 0.4);
+    } catch (e) {
+      debugPrint('SoundManager: Could not play XP earned sound: $e');
+    }
+  }
+
   void dispose() {
     _player.dispose();
   }

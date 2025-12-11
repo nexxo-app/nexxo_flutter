@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../data/repositories/supabase_repository.dart';
 import '../../../../data/models/supabase_models.dart';
+import '../../../../data/models/ranking_models.dart';
+import '../../widgets/mission_notification.dart';
 import 'widgets/home_header.dart';
 import 'widgets/summary_card.dart';
 import 'widgets/quick_actions.dart';
@@ -18,7 +20,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _repository = SupabaseRepository();
+  final _notificationService = MissionNotificationService();
   late Future<Map<String, dynamic>> _dashboardData;
+  bool _hasCheckedDailyMission = false;
 
   @override
   void initState() {
@@ -37,6 +41,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final transactions = await _repository.getRecentTransactions();
     final savingsGoals = await _repository.getSavingsGoals();
 
+    // Check and complete daily "open app" mission
+    if (!_hasCheckedDailyMission) {
+      _hasCheckedDailyMission = true;
+      _checkDailyOpenAppMission();
+    }
+
     return {
       'profile': profile,
       'summaryTotal': summaryTotal,
@@ -44,6 +54,49 @@ class _HomeScreenState extends State<HomeScreen> {
       'transactions': transactions,
       'savingsGoals': savingsGoals,
     };
+  }
+
+  /// Check and complete the daily "open app" mission
+  Future<void> _checkDailyOpenAppMission() async {
+    try {
+      final missions = await _repository.getWeeklyMissions();
+
+      // Find the daily "open app" mission
+      final openAppMission = missions
+          .where(
+            (m) => m.missionType == MissionType.openAppDaily && !m.isCompleted,
+          )
+          .firstOrNull;
+
+      if (openAppMission != null) {
+        // Complete the mission
+        await _repository.updateMissionProgress(openAppMission.id, 1.0);
+
+        // Show notification after a short delay
+        if (mounted) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              final completedMission = WeeklyMission(
+                id: openAppMission.id,
+                odMesterId: openAppMission.odMesterId,
+                missionType: openAppMission.missionType,
+                targetValue: openAppMission.targetValue,
+                currentValue: openAppMission.targetValue,
+                isCompleted: true,
+                weekStart: openAppMission.weekStart,
+                weekEnd: openAppMission.weekEnd,
+              );
+              _notificationService.showMissionComplete(
+                context,
+                completedMission,
+              );
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking daily open app mission: $e');
+    }
   }
 
   void _refreshData() {

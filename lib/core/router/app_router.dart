@@ -6,6 +6,7 @@ import '../../presentation/screens/profile/edit_profile_screen.dart';
 import '../../presentation/widgets/bottom_nav_bar.dart';
 import '../../presentation/screens/home/home_screen.dart';
 import '../../presentation/screens/reports/reports_screen.dart';
+import '../../presentation/screens/ranking/ranking_screen.dart';
 
 import '../../presentation/screens/expenses/expenses_screen.dart';
 import '../../presentation/screens/auth/login_screen.dart';
@@ -76,6 +77,10 @@ final appRouter = GoRouter(
         GoRoute(
           path: '/expenses',
           builder: (context, state) => const ExpensesScreen(),
+        ),
+        GoRoute(
+          path: '/ranking',
+          builder: (context, state) => const RankingScreen(),
         ),
         GoRoute(
           path: '/profile',
