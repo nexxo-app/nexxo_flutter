@@ -787,19 +787,8 @@ class _RankingScreenState extends State<RankingScreen>
       context: context,
       builder: (context) => Dialog(
         backgroundColor: Colors.transparent,
-        child: Container(
+        child: GlassContainer(
           padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -815,10 +804,16 @@ class _RankingScreenState extends State<RankingScreen>
                       ? [
                           BoxShadow(
                             color: Colors.amber.withValues(alpha: 0.3),
-                            blurRadius: 20,
+                            blurRadius: 30,
                             spreadRadius: 5,
                           ),
                         ]
+                      : null,
+                  border: achievement.isUnlocked
+                      ? Border.all(
+                          color: Colors.amber.withValues(alpha: 0.5),
+                          width: 2,
+                        )
                       : null,
                 ),
                 child: Icon(
@@ -827,7 +822,7 @@ class _RankingScreenState extends State<RankingScreen>
                   color: achievement.isUnlocked ? Colors.amber : Colors.grey,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               // Status badge
               Container(
@@ -840,6 +835,11 @@ class _RankingScreenState extends State<RankingScreen>
                       ? Colors.green.withValues(alpha: 0.15)
                       : Colors.grey.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: achievement.isUnlocked
+                        ? Colors.green.withValues(alpha: 0.3)
+                        : Colors.grey.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Text(
                   achievement.isUnlocked ? '✓ Desbloqueada' : '🔒 Bloqueada',
@@ -850,24 +850,28 @@ class _RankingScreenState extends State<RankingScreen>
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Title
               Text(
                 achievement.name,
                 textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
 
               // Category
               Text(
                 achievement.categoryName,
-                style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 14,
+                  letterSpacing: 1.2,
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
               // Description
               Text(
@@ -875,69 +879,107 @@ class _RankingScreenState extends State<RankingScreen>
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: isDark ? Colors.grey[300] : Colors.grey[700],
-                  fontSize: 14,
+                  fontSize: 16,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
 
               // Requirement
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: isDark
-                      ? Colors.grey[800]!.withValues(alpha: 0.5)
+                      ? Colors.black.withValues(alpha: 0.2)
                       : Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.info_outline, size: 18, color: Colors.grey[500]),
-                    const SizedBox(width: 8),
-                    Flexible(
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: 20,
+                      color: Colors.grey[500],
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
                       child: Text(
                         achievement.requirementDescription,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               // XP reward
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.star, color: Colors.amber, size: 24),
-                  const SizedBox(width: 8),
-                  Text(
-                    '+${achievement.xpReward} XP',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.amber,
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.amber.shade700, Colors.amber.shade500],
                   ),
-                ],
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.amber.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.star_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '+${achievement.xpReward} XP',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
               // Unlocked date if applicable
               if (achievement.isUnlocked && achievement.unlockedAt != null) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Text(
                   'Desbloqueada em ${_formatDate(achievement.unlockedAt!)}',
                   style: TextStyle(color: Colors.grey[500], fontSize: 12),
                 ),
               ],
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               // Close button
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Fechar'),
+                child: Text(
+                  'Fechar',
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),

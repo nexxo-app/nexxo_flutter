@@ -7,6 +7,7 @@ import '../../../../data/models/ranking_models.dart';
 import '../../widgets/mission_notification.dart';
 import 'widgets/home_header.dart';
 import 'widgets/summary_card.dart';
+import 'widgets/import_balance_card.dart';
 import 'widgets/quick_actions.dart';
 import 'widgets/transaction_list.dart';
 import 'widgets/goals_pie_chart.dart';
@@ -45,6 +46,14 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!_hasCheckedDailyMission) {
       _hasCheckedDailyMission = true;
       _checkDailyOpenAppMission();
+    }
+
+    // New User Redirect Logic
+    if (profile?.hasImportedBalance == false &&
+        transactions.isEmpty &&
+        mounted) {
+      // Use Future.microtask to avoid build conflicts
+      Future.microtask(() => context.go('/import-balance'));
     }
 
     return {
@@ -143,6 +152,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     userName: profile?.fullName?.split(' ').first ?? 'Usuário',
                   ),
                   const SizedBox(height: 20),
+                  if (profile?.hasImportedBalance == false) ...[
+                    const ImportBalanceCard(),
+                    const SizedBox(height: 20),
+                  ],
                   SummaryCard(
                     balanceTotal: summaryTotal?['balance'] ?? 0.0,
                     incomeTotal: summaryTotal?['income'] ?? 0.0,

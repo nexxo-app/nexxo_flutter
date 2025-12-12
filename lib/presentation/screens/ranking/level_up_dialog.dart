@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../data/models/ranking_models.dart';
+import '../../widgets/glass_container.dart';
 
 class LevelUpDialog extends StatefulWidget {
   final RankingLeague previousLeague;
@@ -102,27 +103,8 @@ class _LevelUpDialogState extends State<LevelUpDialog>
             ),
           );
         },
-        child: Container(
+        child: GlassContainer(
           padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(widget.newLeague.color).withValues(alpha: 0.3),
-                Theme.of(context).scaffoldBackgroundColor,
-              ],
-            ),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: Color(widget.newLeague.color), width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: Color(widget.newLeague.color).withValues(alpha: 0.5),
-                blurRadius: 30,
-                spreadRadius: 5,
-              ),
-            ],
-          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -414,20 +396,8 @@ class _MissionCompleteDialogState extends State<MissionCompleteDialog>
         builder: (context, child) {
           return Transform.scale(scale: _scaleAnimation.value, child: child);
         },
-        child: Container(
+        child: GlassContainer(
           padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.green, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.green.withValues(alpha: 0.3),
-                blurRadius: 20,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

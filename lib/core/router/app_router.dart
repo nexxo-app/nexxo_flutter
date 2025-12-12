@@ -15,6 +15,7 @@ import '../../presentation/screens/auth/forgot_password_screen.dart';
 import '../../presentation/screens/home/add_transaction_screen.dart';
 import '../../presentation/screens/goals/savings_goals_screen.dart';
 import '../../presentation/screens/goals/add_savings_goal_screen.dart';
+import '../../presentation/screens/onboarding/import_balance_screen.dart';
 import '../../data/models/supabase_models.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -55,6 +56,10 @@ final appRouter = GoRouter(
         final goal = state.extra as SavingsGoal?;
         return AddSavingsGoalScreen(goal: goal);
       },
+    ),
+    GoRoute(
+      path: '/import-balance',
+      builder: (context, state) => const ImportBalanceScreen(),
     ),
     GoRoute(
       path: '/edit-profile',

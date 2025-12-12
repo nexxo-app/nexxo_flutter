@@ -4,6 +4,7 @@ class Profile {
   final String? fullName;
   final String? avatarUrl;
   final String role;
+  final bool hasImportedBalance;
 
   Profile({
     required this.id,
@@ -11,6 +12,7 @@ class Profile {
     this.fullName,
     this.avatarUrl,
     required this.role,
+    this.hasImportedBalance = false,
   });
 
   factory Profile.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class Profile {
       fullName: json['full_name'],
       avatarUrl: json['avatar_url'],
       role: json['role'] ?? 'user',
+      hasImportedBalance: json['has_imported_balance'] ?? false,
     );
   }
 }

@@ -430,6 +430,20 @@ class SupabaseRepository {
     }
   }
 
+  Future<void> updateHasImportedBalance(bool value) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) throw Exception('Usuário não autenticado');
+
+      await _client
+          .from('profiles')
+          .update({'has_imported_balance': value})
+          .eq('id', userId);
+    } catch (e) {
+      throw Exception('Erro ao atualizar status de saldo importado: $e');
+    }
+  }
+
   Future<List<CategoryModel>> getCategories() async {
     try {
       final userId = _client.auth.currentUser?.id;
