@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/sound_manager.dart';
+import '../../../core/services/web_share_service.dart';
+import '../../../core/services/story_image_service.dart';
 import '../../../data/models/ranking_models.dart';
 import '../../../data/repositories/supabase_repository.dart';
 import '../../widgets/glass_container.dart';
 import 'widgets/ranking_widgets.dart';
-import 'level_up_dialog.dart';
+import 'achievement_story.dart';
+import 'story_cards.dart';
 
 class RankingScreen extends StatefulWidget {
   const RankingScreen({super.key});
@@ -22,10 +25,10 @@ class _RankingScreenState extends State<RankingScreen>
 
   UserRanking? _userRanking;
   RankingLeague? _previousLeague;
-  List<LeaderboardEntry> _leaderboard = [];
   List<WeeklyMission> _missions = [];
   List<WeeklyMission> _previousMissions = [];
   bool _isLoading = true;
+  String _userName = '';
 
   @override
   void initState() {
@@ -50,10 +53,8 @@ class _RankingScreenState extends State<RankingScreen>
 
       final ranking = await _repository.getUserRanking();
 
-      List<LeaderboardEntry> leaderboard = [];
-      if (ranking != null) {
-        leaderboard = await _repository.getLeaderboard(ranking.currentLeague);
-      }
+      // Load user profile for name
+      final profile = await _repository.getProfile();
 
       // Update streak on app open
       await _repository.updateStreak();
@@ -66,8 +67,8 @@ class _RankingScreenState extends State<RankingScreen>
 
       setState(() {
         _userRanking = ranking;
-        _leaderboard = leaderboard;
         _missions = updatedMissions;
+        _userName = profile?.fullName ?? profile?.email ?? '';
         _isLoading = false;
       });
 
@@ -96,36 +97,16 @@ class _RankingScreenState extends State<RankingScreen>
   void _showAchievementUnlockedNotification(Achievement achievement) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.emoji_events, color: Colors.amber),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    '🏆 Conquista Desbloqueada!',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '${achievement.name} (+${achievement.xpReward} XP)',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.green.shade700,
-        duration: const Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
+    // Show story dialog for achievement
+    _soundManager.playLevelUp();
+    AchievementStoryDialog.show(
+      context,
+      achievement: achievement,
+      totalXp: _userRanking?.totalXp ?? 0,
+      currentLeague: _userRanking?.currentLeague ?? RankingLeague.bronze,
+      onDismiss: () {
+        _loadData(); // Refresh data
+      },
     );
   }
 
@@ -148,9 +129,11 @@ class _RankingScreenState extends State<RankingScreen>
 
   void _showMissionCompleteCelebration(WeeklyMission mission) {
     _soundManager.playMissionComplete();
-    MissionCompleteDialog.show(
+    MissionStoryDialog.show(
       context,
       mission: mission,
+      totalXp: _userRanking?.totalXp ?? 0,
+      currentLeague: _userRanking?.currentLeague ?? RankingLeague.bronze,
       onDismiss: () {
         _loadData(); // Refresh data
       },
@@ -162,15 +145,84 @@ class _RankingScreenState extends State<RankingScreen>
     RankingLeague newLeague,
   ) {
     _soundManager.playLevelUp();
-    LevelUpDialog.show(
+    LeagueUpStoryDialog.show(
       context,
       previousLeague: previous,
       newLeague: newLeague,
-      xpEarned: _userRanking?.totalXp ?? 0,
+      totalXp: _userRanking?.totalXp ?? 0,
       onDismiss: () {
         _loadData(); // Refresh data
       },
     );
+  }
+
+  Future<void> _shareRanking() async {
+    if (_userRanking == null) return;
+
+    final storyKey = GlobalKey();
+    OverlayEntry? overlayEntry;
+
+    // Create offscreen widget to capture
+    overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: -2000,
+        top: -2000,
+        child: Material(
+          color: Colors.transparent,
+          child: RankingStoryCard(
+            totalXp: _userRanking!.totalXp,
+            currentLeague: _userRanking!.currentLeague,
+            currentStreak: _userRanking!.currentStreak,
+            longestStreak: _userRanking!.longestStreak,
+            userName: _userName,
+            repaintBoundaryKey: storyKey,
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(overlayEntry);
+    await Future.delayed(const Duration(milliseconds: 200));
+
+    // Capture the story as image
+    final imageService = StoryImageService.instance;
+    final imageBytes = await imageService.captureWidget(storyKey);
+
+    // Remove overlay
+    overlayEntry.remove();
+
+    if (imageBytes != null) {
+      final shareText =
+          '''🏆 Meu Ranking no Nexxo!
+
+${_userRanking!.currentLeague.emoji} Liga ${_userRanking!.currentLeague.name}
+⭐ ${_userRanking!.totalXp} XP
+🔥 ${_userRanking!.currentStreak} dias de streak
+
+Controle suas finanças com o Nexxo!''';
+
+      await imageService.shareImage(
+        imageBytes: imageBytes,
+        fileName: 'nexxo_ranking.png',
+        title: 'Nexxo - Meu Ranking',
+        text: shareText,
+      );
+    } else {
+      // Fallback to text share
+      final shareService = WebShareService.instance;
+      await shareService.share(
+        title: 'Nexxo - Meu Ranking',
+        text:
+            '''🏆 Meu Ranking no Nexxo!
+
+${_userRanking!.currentLeague.emoji} Liga ${_userRanking!.currentLeague.name}
+⭐ ${_userRanking!.totalXp} XP
+🔥 ${_userRanking!.currentStreak} dias de streak
+
+Controle suas finanças com o Nexxo!''',
+        url: 'https://vinis-moraes.github.io/nexxo-web/',
+      );
+    }
   }
 
   @override
@@ -220,13 +272,40 @@ class _RankingScreenState extends State<RankingScreen>
             // XP Progress Card
             GlassContainer(
               padding: const EdgeInsets.all(20),
-              child: XpProgressBar(
-                currentXp: _userRanking!.totalXp,
-                targetXp:
-                    _userRanking!.currentLeague.nextLeague?.minXp ??
-                    _userRanking!.totalXp,
-                currentLeague: _userRanking!.currentLeague,
-                nextLeague: _userRanking!.currentLeague.nextLeague,
+              child: Column(
+                children: [
+                  XpProgressBar(
+                    currentXp: _userRanking!.totalXp,
+                    targetXp:
+                        _userRanking!.currentLeague.nextLeague?.minXp ??
+                        _userRanking!.totalXp,
+                    currentLeague: _userRanking!.currentLeague,
+                    nextLeague: _userRanking!.currentLeague.nextLeague,
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _shareRanking,
+                      icon: const Icon(Icons.share_rounded, size: 18),
+                      label: const Text('Compartilhar Ranking'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Color(
+                          _userRanking!.currentLeague.color,
+                        ),
+                        side: BorderSide(
+                          color: Color(
+                            _userRanking!.currentLeague.color,
+                          ).withValues(alpha: 0.5),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -267,59 +346,6 @@ class _RankingScreenState extends State<RankingScreen>
                 },
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            // Leaderboard Section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Top 10 - ${_userRanking!.currentLeague.name}',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                TextButton(
-                  onPressed: _showGlobalLeaderboard,
-                  child: const Text('Ver Global'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            if (_leaderboard.isEmpty)
-              GlassContainer(
-                padding: const EdgeInsets.all(32),
-                child: Center(
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.leaderboard_outlined,
-                        size: 48,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Seja o primeiro na sua liga!',
-                        style: TextStyle(color: Colors.grey[500]),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _leaderboard.length,
-                itemBuilder: (context, index) {
-                  return LeaderboardItem(
-                    entry: _leaderboard[index],
-                    position: index + 1,
-                  );
-                },
-              ),
 
             const SizedBox(height: 100), // Bottom padding for nav bar
           ],
@@ -493,6 +519,9 @@ class _RankingScreenState extends State<RankingScreen>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black54,
+      isScrollControlled: true,
+      useRootNavigator: true,
       builder: (context) => Container(
         decoration: BoxDecoration(
           color: Theme.of(context).scaffoldBackgroundColor,
@@ -559,68 +588,6 @@ class _RankingScreenState extends State<RankingScreen>
             ),
             const SizedBox(height: 24),
           ],
-        ),
-      ),
-    );
-  }
-
-  void _showGlobalLeaderboard() async {
-    final globalLeaderboard = await _repository.getGlobalLeaderboard();
-
-    if (!mounted) return;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) => Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '🌍 Ranking Global',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: globalLeaderboard.length,
-                  itemBuilder: (context, index) {
-                    return LeaderboardItem(
-                      entry: globalLeaderboard[index],
-                      position: index + 1,
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -785,210 +752,308 @@ class _RankingScreenState extends State<RankingScreen>
 
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: GlassContainer(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Icon with glow effect
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: achievement.isUnlocked
-                      ? Colors.amber.withValues(alpha: 0.2)
-                      : Colors.grey.withValues(alpha: 0.1),
-                  boxShadow: achievement.isUnlocked
-                      ? [
-                          BoxShadow(
-                            color: Colors.amber.withValues(alpha: 0.3),
-                            blurRadius: 30,
-                            spreadRadius: 5,
-                          ),
-                        ]
-                      : null,
-                  border: achievement.isUnlocked
-                      ? Border.all(
-                          color: Colors.amber.withValues(alpha: 0.5),
-                          width: 2,
-                        )
-                      : null,
-                ),
-                child: Icon(
-                  getIconData(achievement.icon),
-                  size: 48,
-                  color: achievement.isUnlocked ? Colors.amber : Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Status badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: achievement.isUnlocked
-                      ? Colors.green.withValues(alpha: 0.15)
-                      : Colors.grey.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: achievement.isUnlocked
-                        ? Colors.green.withValues(alpha: 0.3)
-                        : Colors.grey.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Text(
-                  achievement.isUnlocked ? '✓ Desbloqueada' : '🔒 Bloqueada',
-                  style: TextStyle(
-                    color: achievement.isUnlocked ? Colors.green : Colors.grey,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Title
-              Text(
-                achievement.name,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Category
-              Text(
-                achievement.categoryName,
-                style: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 14,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Description
-              Text(
-                achievement.description,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: isDark ? Colors.grey[300] : Colors.grey[700],
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Requirement
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.black.withValues(alpha: 0.2)
-                      : Colors.grey[100],
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.1),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline_rounded,
-                      size: 20,
-                      color: Colors.grey[500],
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        achievement.requirementDescription,
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 14,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // XP reward
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.amber.shade700, Colors.amber.shade500],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.amber.withValues(alpha: 0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '+${achievement.xpReward} XP',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Unlocked date if applicable
-              if (achievement.isUnlocked && achievement.unlockedAt != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Desbloqueada em ${_formatDate(achievement.unlockedAt!)}',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                ),
-              ],
-
-              const SizedBox(height: 24),
-
-              // Close button
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Fechar',
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      builder: (dialogContext) => _AchievementDetailsDialog(
+        achievement: achievement,
+        getIconData: getIconData,
+        isDark: isDark,
+        totalXp: _userRanking?.totalXp ?? 0,
+        currentLeague: _userRanking?.currentLeague ?? RankingLeague.bronze,
+        userName: _userName,
       ),
     );
+  }
+}
+
+// Separate StatefulWidget for achievement details with share functionality
+class _AchievementDetailsDialog extends StatefulWidget {
+  final Achievement achievement;
+  final IconData Function(String) getIconData;
+  final bool isDark;
+  final int totalXp;
+  final RankingLeague currentLeague;
+  final String userName;
+
+  const _AchievementDetailsDialog({
+    required this.achievement,
+    required this.getIconData,
+    required this.isDark,
+    required this.totalXp,
+    required this.currentLeague,
+    required this.userName,
+  });
+
+  @override
+  State<_AchievementDetailsDialog> createState() =>
+      _AchievementDetailsDialogState();
+}
+
+class _AchievementDetailsDialogState extends State<_AchievementDetailsDialog> {
+  bool _isSharing = false;
+  final GlobalKey _storyKey = GlobalKey();
+  OverlayEntry? _overlayEntry;
+
+  Future<void> _handleShare() async {
+    setState(() => _isSharing = true);
+
+    try {
+      // Create an offscreen story card to capture
+      _overlayEntry = OverlayEntry(
+        builder: (context) => Positioned(
+          left: -2000, // Off-screen
+          top: -2000,
+          child: Material(
+            color: Colors.transparent,
+            child: AchievementStoryCard(
+              achievement: widget.achievement,
+              totalXp: widget.totalXp,
+              currentLeague: widget.currentLeague,
+              userName: widget.userName,
+              repaintBoundaryKey: _storyKey,
+            ),
+          ),
+        ),
+      );
+
+      Overlay.of(context).insert(_overlayEntry!);
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      // Capture the story as image
+      final imageService = StoryImageService.instance;
+      final imageBytes = await imageService.captureWidget(_storyKey);
+
+      // Remove overlay
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+
+      if (imageBytes != null) {
+        // Share with image
+        final shareService = WebShareService.instance;
+        final shareText = shareService.createAchievementShareText(
+          achievementName: widget.achievement.name,
+          xpReward: widget.achievement.xpReward,
+          totalXp: widget.totalXp,
+          leagueName: widget.currentLeague.name,
+        );
+
+        await imageService.shareImage(
+          imageBytes: imageBytes,
+          fileName:
+              'nexxo_conquista_${DateTime.now().millisecondsSinceEpoch}.png',
+          title: 'Nexxo - Minha Conquista!',
+          text: shareText,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error sharing: $e');
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+    }
+
+    if (mounted) {
+      setState(() => _isSharing = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _overlayEntry?.remove();
+    super.dispose();
   }
 
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final achievement = widget.achievement;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: GlassContainer(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Icon with glow effect
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: achievement.isUnlocked
+                    ? Colors.amber.withValues(alpha: 0.2)
+                    : Colors.grey.withValues(alpha: 0.1),
+                boxShadow: achievement.isUnlocked
+                    ? [
+                        BoxShadow(
+                          color: Colors.amber.withValues(alpha: 0.3),
+                          blurRadius: 30,
+                          spreadRadius: 5,
+                        ),
+                      ]
+                    : null,
+                border: achievement.isUnlocked
+                    ? Border.all(
+                        color: Colors.amber.withValues(alpha: 0.5),
+                        width: 2,
+                      )
+                    : null,
+              ),
+              child: Icon(
+                widget.getIconData(achievement.icon),
+                size: 48,
+                color: achievement.isUnlocked ? Colors.amber : Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Status badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: achievement.isUnlocked
+                    ? Colors.green.withValues(alpha: 0.15)
+                    : Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: achievement.isUnlocked
+                      ? Colors.green.withValues(alpha: 0.3)
+                      : Colors.grey.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                achievement.isUnlocked ? '✓ Desbloqueada' : '🔒 Bloqueada',
+                style: TextStyle(
+                  color: achievement.isUnlocked ? Colors.green : Colors.grey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Title
+            Text(
+              achievement.name,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+
+            // Category
+            Text(
+              achievement.categoryName,
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 14,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Description
+            Text(
+              achievement.description,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: widget.isDark ? Colors.grey[300] : Colors.grey[700],
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // XP reward
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.amber.shade700, Colors.amber.shade500],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.amber.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.star_rounded, color: Colors.white, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    '+${achievement.xpReward} XP',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Unlocked date if applicable
+            if (achievement.isUnlocked && achievement.unlockedAt != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Desbloqueada em ${_formatDate(achievement.unlockedAt!)}',
+                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+              ),
+            ],
+
+            const SizedBox(height: 20),
+
+            // Share button (only for unlocked achievements)
+            if (achievement.isUnlocked) ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isSharing ? null : _handleShare,
+                  icon: _isSharing
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.share_rounded, size: 18),
+                  label: Text(
+                    _isSharing ? 'Compartilhando...' : 'Compartilhar Conquista',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade600,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+
+            // Close button
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Fechar',
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

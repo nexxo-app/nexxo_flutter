@@ -19,16 +19,42 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final _repository = SupabaseRepository();
   final _notificationService = MissionNotificationService();
   late Future<Map<String, dynamic>> _dashboardData;
   bool _hasCheckedDailyMission = false;
+  DateTime? _lastLoadTime;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _dashboardData = _fetchDashboardData();
+    _lastLoadTime = DateTime.now();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh when app resumes from background
+    if (state == AppLifecycleState.resumed) {
+      _refreshDataIfNeeded();
+    }
+  }
+
+  /// Refresh data if more than 1 second has passed since last load
+  /// This handles navigation back from import balance screen
+  void _refreshDataIfNeeded() {
+    final now = DateTime.now();
+    if (_lastLoadTime == null || now.difference(_lastLoadTime!).inSeconds > 1) {
+      _refreshData();
+    }
   }
 
   Future<Map<String, dynamic>> _fetchDashboardData() async {
@@ -53,7 +79,9 @@ class _HomeScreenState extends State<HomeScreen> {
         transactions.isEmpty &&
         mounted) {
       // Use Future.microtask to avoid build conflicts
-      Future.microtask(() => context.go('/import-balance'));
+      Future.microtask(() {
+        if (mounted) context.go('/import-balance');
+      });
     }
 
     return {
@@ -111,6 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _refreshData() {
     setState(() {
       _dashboardData = _fetchDashboardData();
+      _lastLoadTime = DateTime.now();
     });
   }
 
